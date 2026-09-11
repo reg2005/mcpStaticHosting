@@ -1,0 +1,11 @@
+{
+  "name": "@mcphosting/functions",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Deno sandbox that runs user backend functions. Requires the `deno` runtime.",
+  "scripts": {
+    "dev": "deno task dev",
+    "start": "deno task start",
+    "check": "deno task check"
+  }
+}

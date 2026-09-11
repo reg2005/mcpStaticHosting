@@ -1,0 +1,15 @@
+**/.git
+**/node_modules
+**/.next
+**/.turbo
+**/.env
+**/.env.*
+**/data
+**/backups
+**/*.log
+**/*.tsbuildinfo
+.codebase-memory
+.github
+docs
+tests
+apps/web/public/monaco

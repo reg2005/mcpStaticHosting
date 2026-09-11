@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: MCP Static Hosting HTTP transport
+  version: 0.1.0
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
+  description: >-
+    Stateless MCP Streamable HTTP. Tool schemas are returned by tools/list.
+    Tokens grant owner-scoped access to all project tools; no finer scopes.
+    Rate limit defaults to 600 requests/minute/token, fails open on Redis failure.
+    No idempotency-key support; inspect release state before retrying mutations.
+    Dashboard REST and authentication UI endpoints are internal, unsupported APIs.
+    Tool validation/errors follow MCP JSON-RPC; HTTP 422 is not used for this envelope.
+servers:
+  - url: https://mcp.example.com
+paths:
+  /healthz:
+    get:
+      summary: Check process liveness
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+  /mcp:
+    post:
+      summary: Submit an MCP JSON-RPC message
+      operationId: mcpRequest
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jsonrpc, method]
+              properties:
+                jsonrpc: { type: string, const: '2.0' }
+                id: { type: [string, integer] }
+                method: { type: string }
+                params: { type: object, additionalProperties: true }
+            example: { jsonrpc: '2.0', id: 1, method: tools/list, params: {} }
+      responses:
+        '200':
+          description: JSON-RPC result or tool/protocol error, possibly framed as SSE
+          content:
+            text/event-stream:
+              schema: { type: string }
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        '202': { description: Notification accepted }
+        '400': { description: Invalid JSON-RPC request }
+        '401': { description: Missing or invalid bearer token }
+        '404': { description: Unsupported method or endpoint }
+        '406': { description: Client must accept JSON and event-stream responses }
+        '429':
+          description: Per-token rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer }
+              description: Seconds until the rate window resets
+        '500': { description: Unexpected internal failure }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Revocable API key created by an authenticated dashboard user

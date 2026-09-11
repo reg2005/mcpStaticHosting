@@ -1,0 +1,30 @@
+{
+  "name": "@mcphosting/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../scripts/prepare-editor.mjs && next dev -p ${WEB_PORT:-3000}",
+    "build": "node ../../scripts/prepare-editor.mjs && next build",
+    "start": "node server.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "1.7.4",
+    "@mcphosting/auth": "workspace:*",
+    "@mcphosting/core": "workspace:*",
+    "@mcphosting/db": "workspace:*",
+    "@monaco-editor/react": "^4.7.0",
+    "better-auth": "^1.7.4",
+    "monaco-editor": "0.52.2",
+    "next": "^15.5.25",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}

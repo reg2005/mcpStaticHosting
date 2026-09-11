@@ -1,0 +1,9 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        VERSION: ${IMAGE_TAG:-dev}
+  functions:
+    build:
+      context: ./apps/functions

@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: node scripts/check-secrets.mjs
+      - run: pnpm audit --prod --audit-level=high
+      - run: sh scripts/setup.sh
+      - run: docker compose --profile functions config --quiet
+      - run: docker compose -f compose.yaml -f compose.build.yaml config --quiet
+      - run: npx --yes @redocly/cli@2 lint docs/openapi.yaml --extends minimal
+      - run: docker build -t reg2005/mcp-static-hosting:0.1.0 .
+      - run: docker compose up -d --wait --wait-timeout 180
+      - run: node scripts/smoke.mjs
+      - if: always()
+        run: docker compose down -v
+  functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: '2.6.10' }
+      - run: deno task check
+        working-directory: apps/functions
+      - run: docker build -t mcphosting-functions:test apps/functions

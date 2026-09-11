@@ -1,0 +1,7 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "files": { "ignoreUnknown": true, "includes": ["**", "!!**/node_modules", "!!**/.next", "!!**/drizzle/meta", "!!**/public/monaco"] },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": { "enabled": true, "rules": { "recommended": false, "correctness": { "noUnreachable": "error", "noUnsafeFinally": "error", "noConstantCondition": "error" }, "suspicious": { "noDuplicateParameters": "error" } } }
+}

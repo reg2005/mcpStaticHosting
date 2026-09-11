@@ -1,0 +1,123 @@
+name: ${COMPOSE_PROJECT_NAME:-mcp-static-hosting}
+
+x-env: &env
+  NODE_ENV: production
+  DATABASE_URL: postgres://mcphosting:${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}@postgres:5432/mcphosting
+  REDIS_URL: redis://redis:6379
+  APP_SECRET: ${APP_SECRET:?Run sh scripts/setup.sh}
+  AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:3000}
+  MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-http://localhost:3001/mcp}
+  PUBLIC_BASE_DOMAIN: ${PUBLIC_BASE_DOMAIN:-lvh.me}
+  PUBLIC_SITE_SCHEME: ${PUBLIC_SITE_SCHEME:-http}
+  PUBLIC_SITE_PORT: ${PUBLIC_SITE_PORT-3002}
+  REPO_ROOT: /data/repos
+  SNAPSHOT_ROOT: /data/snapshots
+  JSON_DATA_ROOT: /data/json-db
+  SIGNUPS_ENABLED: ${SIGNUPS_ENABLED:-true}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-MCP Static Hosting <noreply@example.com>}
+  FUNCTIONS_URL: http://functions:3003
+  FUNCTIONS_ENABLED: ${FUNCTIONS_ENABLED:-false}
+  MCP_RATE_LIMIT_PER_MIN: ${MCP_RATE_LIMIT_PER_MIN:-600}
+
+x-app: &app
+  image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting:${IMAGE_TAG:-0.1.0}
+  environment: *env
+  restart: unless-stopped
+  init: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 256
+  mem_limit: 1g
+  volumes: [sites:/data]
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+
+x-health: &health
+  interval: 15s
+  timeout: 5s
+  retries: 8
+  start_period: 40s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mcphosting
+      POSTGRES_DB: mcphosting
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U mcphosting -d mcphosting']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, 'yes']
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    <<: *app
+    restart: 'no'
+    command: [pnpm, --filter, '@mcphosting/db', migrate]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  web:
+    <<: *app
+    command: [pnpm, --filter, '@mcphosting/web', start]
+    ports: ['${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000']
+    healthcheck:
+      <<: *health
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  mcp:
+    <<: *app
+    command: [pnpm, --filter, '@mcphosting/mcp', start]
+    ports: ['${BIND_ADDRESS:-127.0.0.1}:${MCP_PORT:-3001}:3001']
+    healthcheck:
+      <<: *health
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  router:
+    <<: *app
+    command: [pnpm, --filter, '@mcphosting/router', start]
+    ports: ['${BIND_ADDRESS:-127.0.0.1}:${ROUTER_PORT:-3002}:3002']
+    healthcheck:
+      <<: *health
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  functions:
+    image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting-functions:${IMAGE_TAG:-0.1.0}
+    profiles: [functions]
+    user: '1000:1000'
+    init: true
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    environment:
+      REDIS_URL: redis://redis:6379
+      JSON_DATA_ROOT: /data/json-db
+      FUNCTION_TIMEOUT_MS: ${FUNCTION_TIMEOUT_MS:-10000}
+    volumes: [sites:/data]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: [CMD, deno, eval, "const r=await fetch('http://127.0.0.1:3003/healthz');Deno.exit(r.ok?0:1)"]
+volumes:
+  sites:
+  postgres:
+  redis:

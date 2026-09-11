@@ -1,0 +1,22 @@
+{
+  "name": "@mcphosting/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mcphosting/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "nanoid": "^6.0.1",
+    "simple-git": "^3.36.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

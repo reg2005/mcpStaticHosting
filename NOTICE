@@ -1,0 +1,4 @@
+MCP Static Hosting packages its own application source under the MIT License.
+Third-party packages and container base images remain subject to their licenses.
+Lockfiles identify the included dependencies. Monaco editor assets include their
+upstream notices. Do not remove third-party notices when redistributing images.

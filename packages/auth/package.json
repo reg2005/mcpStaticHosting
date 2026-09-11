@@ -1,0 +1,23 @@
+{
+  "name": "@mcphosting/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "1.7.4",
+    "@mcphosting/core": "workspace:*",
+    "@mcphosting/db": "workspace:*",
+    "better-auth": "^1.7.4",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
