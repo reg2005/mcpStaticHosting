@@ -81,3 +81,9 @@ pass `ACL_PUBLIC_PATH` to the runner, using the printed public project path.
 
 Run the existing wildcard smoke fixture against a separate clean default-mode
 stack to cover the other mode. Remove only the disposable test stack with `down -v`.
+
+To check switching on the same test volumes, update test.env to subdomain mode with
+its fixture DNS credentials, recreate services and run `mode-switch.mjs` with
+`EXPECTED_MODE=subdomain` and `SYSTEM_LABEL` from BROWSER_PATH. It checks wildcard
+issuance when a valid main-only certificate already exists. Switch back and repeat
+with `EXPECTED_MODE=path`; existing project, preview and custom domain must survive.

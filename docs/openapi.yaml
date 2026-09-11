@@ -11,6 +11,8 @@ info:
     Rate limit defaults to 600 requests/minute/token, fails open on Redis failure.
     No idempotency-key support; inspect release state before retrying mutations.
     The domain dashboard API is documented below; other dashboard endpoints are internal.
+    Project URLs can include /sites/ or /preview/ prefixes in path mode; preserve the returned URL pathname.
+    Custom domains serve from the root; systemDomainEnabled controls both system paths or subdomains.
     Tool validation/errors follow MCP JSON-RPC; HTTP 422 is not used for this envelope.
 servers:
   - url: https://example.com
