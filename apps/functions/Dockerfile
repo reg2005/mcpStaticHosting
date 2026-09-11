@@ -1,4 +1,4 @@
-FROM denoland/deno:2.6.10
+FROM denoland/deno:2.9.6
 WORKDIR /app
 COPY deno.json deno.lock main.ts sdk.ts worker.ts ./
 RUN deno cache --frozen main.ts worker.ts
