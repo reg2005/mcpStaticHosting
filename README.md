@@ -10,7 +10,7 @@ This is a new independent project; no existing accounts, data, secrets, domains,
 or deployment history are included. See [security boundaries](SECURITY.md).
 
 [Русская инструкция](docs/README.ru.md) · [Deployment](docs/deployment.md) ·
-[Configuration](docs/configuration.md) · [MCP](docs/mcp.md) ·
+[Production Compose](compose.prod.yaml) · [Configuration](docs/configuration.md) · [MCP](docs/mcp.md) · [Published images](docs/images.md) ·
 [Operations](docs/operations.md) · [Contributing](CONTRIBUTING.md)
 
 ## Features
@@ -22,9 +22,6 @@ or deployment history are included. See [security boundaries](SECURITY.md).
 - Runtime domain configuration: the same Docker image works for different installations.
 - Optional experimental Deno functions with project KV, JSON records and encrypted secrets.
 - PostgreSQL metadata, Redis, persistent Docker volumes and automatic database migrations.
-
-> **Image publication pending:** the initial Docker Hub upload has not been completed yet.
-> Until image tags are available, use [Build from source](#build-from-source).
 
 ## Quick start
 
@@ -89,7 +86,7 @@ TLS. The compose wrapper is equivalent to
 | `redis:7-alpine` | Rate limits, function KV and function logs |
 
 The default Compose file pulls prebuilt images and does not build on the server.
-Check Docker Hub's platform list before deploying to a different CPU architecture.
+Published images target `linux/amd64` (x86-64).
 Use a version tag or digest in production. See [release instructions](docs/releases.md).
 
 ## Architecture

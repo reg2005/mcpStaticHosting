@@ -45,7 +45,7 @@ assert.equal(typeof key,'string');
 const listing = await rpc(key,'tools/list',{});
 assert(listing.tools.some(t=>t.name==='create_project'));
 const project = await tool(key,'create_project',{name:`smoke-${Date.now()}`});
-assert.equal(new URL(project.previewUrl).protocol, new URL(router).protocol);
+assert.equal(new URL(project.previewUrl).protocol, process.env.SMOKE_SITE_SCHEME ? `${process.env.SMOKE_SITE_SCHEME}:` : new URL(router).protocol);
 await tool(key,'write_file',{project:project.id,path:'index.html',content:'<h1>first release</h1>'});
 assert.match((await site(project.previewUrl)).body,/first release/);
 await tool(key,'write_file',{project:project.id,path:'functions/api/hello.ts',content:'export default async (_req, ctx) => { const record = await ctx.data.insert("smoke", {hello:true}); return Response.json({hello:true, id:record.id}); };'});
