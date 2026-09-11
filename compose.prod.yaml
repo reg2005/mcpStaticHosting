@@ -1,4 +1,4 @@
-# Standalone production stack for a host-installed TLS reverse proxy.
+# Production stack with bundled Nginx and automatic DNS-01 / HTTP-01 certificates.
 # sh scripts/setup.sh --production
 # Edit .env.production, then:
 # docker compose --env-file .env.production -f compose.prod.yaml up -d --wait
@@ -9,9 +9,10 @@ x-env: &env
   DATABASE_URL: postgres://mcphosting:${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}@postgres:5432/mcphosting
   REDIS_URL: redis://redis:6379
   APP_SECRET: ${APP_SECRET:?Run sh scripts/setup.sh}
-  AUTH_BASE_URL: ${AUTH_BASE_URL:?Set AUTH_BASE_URL to the public HTTPS dashboard origin}
-  MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:?Set MCP_PUBLIC_URL to the public HTTPS MCP endpoint}
-  PUBLIC_BASE_DOMAIN: ${PUBLIC_BASE_DOMAIN:?Set PUBLIC_BASE_DOMAIN to the hosted sites domain}
+  MAIN_DOMAIN: ${MAIN_DOMAIN:?Set MAIN_DOMAIN}
+  AUTH_BASE_URL: https://${MAIN_DOMAIN:?Set MAIN_DOMAIN}
+  MCP_PUBLIC_URL: https://${MAIN_DOMAIN:?Set MAIN_DOMAIN}/mcp
+  PUBLIC_BASE_DOMAIN: ${MAIN_DOMAIN:?Set MAIN_DOMAIN}
   PUBLIC_SITE_SCHEME: https
   PUBLIC_SITE_PORT: ""
   REPO_ROOT: /data/repos
@@ -26,7 +27,7 @@ x-env: &env
 
 x-app: &app
   platform: linux/amd64
-  image: reg2005/mcp-static-hosting:${IMAGE_TAG:-0.1.0}
+  image: reg2005/mcp-static-hosting:${IMAGE_TAG:-0.2.0}
   environment: *env
   restart: unless-stopped
   init: true
@@ -48,6 +49,41 @@ x-health: &health
   start_period: 40s
 
 services:
+  edge:
+    platform: linux/amd64
+    image: reg2005/mcp-static-hosting-edge:${IMAGE_TAG:-0.2.0}
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    mem_limit: 512m
+    ports: ['80:8080', '443:8443']
+    environment:
+      DATABASE_URL: postgres://mcphosting:${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}@postgres:5432/mcphosting
+      MAIN_DOMAIN: ${MAIN_DOMAIN:?Set MAIN_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+      ACME_SERVER: ${ACME_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+      DNS_PROVIDER: ${DNS_PROVIDER:?Set DNS_PROVIDER}
+      DNS_CREDENTIALS_FILE: /run/secrets/dns_credentials
+      PUBLIC_IPV4: ${PUBLIC_IPV4:-}
+      PUBLIC_IPV6: ${PUBLIC_IPV6:-}
+      DNS_RESOLVERS: ${DNS_RESOLVERS:-1.1.1.1,8.8.8.8}
+      MANAGEMENT_ALLOWED_CIDRS: ${MANAGEMENT_ALLOWED_CIDRS:-}
+    volumes: [edge:/edge]
+    secrets: [dns_credentials]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      web:
+        condition: service_healthy
+      mcp:
+        condition: service_healthy
+      router:
+        condition: service_healthy
+    healthcheck:
+      <<: *health
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:9080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -81,27 +117,24 @@ services:
   web:
     <<: *app
     command: [pnpm, --filter, '@mcphosting/web', start]
-    ports: ['${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000']
     healthcheck:
       <<: *health
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   mcp:
     <<: *app
     command: [pnpm, --filter, '@mcphosting/mcp', start]
-    ports: ['${BIND_ADDRESS:-127.0.0.1}:${MCP_PORT:-3001}:3001']
     healthcheck:
       <<: *health
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   router:
     <<: *app
     command: [pnpm, --filter, '@mcphosting/router', start]
-    ports: ['${BIND_ADDRESS:-127.0.0.1}:${ROUTER_PORT:-3002}:3002']
     healthcheck:
       <<: *health
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   functions:
     platform: linux/amd64
-    image: reg2005/mcp-static-hosting-functions:${IMAGE_TAG:-0.1.0}
+    image: reg2005/mcp-static-hosting-functions:${IMAGE_TAG:-0.2.0}
     profiles: [functions]
     user: '1000:1000'
     init: true
@@ -123,7 +156,12 @@ services:
     healthcheck:
       <<: *health
       test: [CMD, deno, eval, "const r=await fetch('http://127.0.0.1:3003/healthz');Deno.exit(r.ok?0:1)"]
+secrets:
+  dns_credentials:
+    file: ${DNS_CREDENTIALS_PATH:-./secrets/dns.env}
+
 volumes:
+  edge:
   sites:
   postgres:
   redis:

@@ -33,8 +33,7 @@ export default async function EditorPage({
   const files = await service.git.listFiles(projectId);
   const urls = service.hostsFor(project.slug, user.shortId);
   const locked = project.passwordHash !== null;
-  const [domains, env, releases, dataCollections] = await Promise.all([
-    service.listDomains(user.id, projectId),
+  const [env, releases, dataCollections] = await Promise.all([
     service.listEnv(user.id, projectId),
     service.listReleases(user.id, projectId),
     service.data.listCollections(projectId),
@@ -49,7 +48,7 @@ export default async function EditorPage({
       previewSrc={previewSrcFor(urls.previewUrl, projectId, locked)}
       productionUrl={urls.productionUrl}
       passwordProtected={locked}
-      domains={domains.map((d) => d.hostname)}
+      systemDomainEnabled={project.systemDomainEnabled}
       secrets={env.map((e) => e.key)}
       releases={releases.map((r) => ({
         version: r.version,

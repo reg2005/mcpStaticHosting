@@ -7,13 +7,17 @@ version references and the Compose image tag together.
 
 ```sh
 docker login
-VERSION=0.1.0
+VERSION=0.2.0
 REVISION=$(git rev-parse HEAD)
 docker build --platform linux/amd64 \
   --build-arg VERSION="$VERSION" --build-arg REVISION="$REVISION" \
   -t "reg2005/mcp-static-hosting:$VERSION" .
 docker build --platform linux/amd64 \
   -t "reg2005/mcp-static-hosting-functions:$VERSION" apps/functions
+docker build --platform linux/amd64 -f Dockerfile.edge \
+  --build-arg APP_IMAGE="reg2005/mcp-static-hosting:$VERSION" \
+  -t "reg2005/mcp-static-hosting-edge:$VERSION" .
+docker push "reg2005/mcp-static-hosting-edge:$VERSION"
 docker push "reg2005/mcp-static-hosting:$VERSION"
 docker push "reg2005/mcp-static-hosting-functions:$VERSION"
 docker buildx imagetools inspect "reg2005/mcp-static-hosting:$VERSION"

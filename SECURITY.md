@@ -20,7 +20,8 @@ rendered Compose configuration, session cookies or API keys in an issue.
 - The host and Docker administrators can read runtime configuration and site data.
 - Use a separate registrable domain for untrusted site content and the dashboard.
 - Close registration after onboarding trusted users. Add edge rate/request limits.
-- Custom domain mapping does not establish ownership through a DNS challenge.
+- Custom domains require matching public DNS and successful HTTP-01 certificate issuance.
+  This proves routing to the instance, not which local account owns the zone.
 - The MCP rate limiter fails open on Redis failure. There is no storage quota system.
 - Optional Deno workers restrict file and environment permissions, but allow network
   access. They do not provide a hardened boundary against SSRF or malicious authors.

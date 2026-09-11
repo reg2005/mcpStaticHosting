@@ -15,3 +15,6 @@ coverage/
 .DS_Store
 .codebase-memory/
 apps/web/public/monaco/
+
+/secrets/
+/edge-data/

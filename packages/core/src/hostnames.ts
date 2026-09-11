@@ -1,7 +1,7 @@
 /**
  * Subdomain scheme:
  *   production: <slug>-<userShortId>.<baseDomain>
- *   preview:    <slug>-<userShortId>.preview.<baseDomain>
+ *   preview:    preview--<slug>-<userShortId>.<baseDomain>
  *
  * The userShortId suffix is mandatory so site names never collide between users.
  */
@@ -16,7 +16,7 @@ export function productionHost(parts: HostParts, baseDomain: string): string {
 }
 
 export function previewHost(parts: HostParts, baseDomain: string): string {
-  return `${parts.slug}-${parts.userShortId}.preview.${baseDomain}`;
+  return `preview--${parts.slug}-${parts.userShortId}.${baseDomain}`;
 }
 
 export interface ResolvedHost {
@@ -34,19 +34,9 @@ export function parsemcphostingHost(hostname: string, baseDomain: string): Resol
   if (!host.endsWith(`.${baseDomain}`)) return null;
 
   const sub = host.slice(0, -1 * (baseDomain.length + 1));
-  const labels = sub.split(".");
-
-  let isPreview = false;
-  let label: string | undefined;
-
-  if (labels.length === 1) {
-    label = labels[0];
-  } else if (labels.length === 2 && labels[1] === "preview") {
-    isPreview = true;
-    label = labels[0];
-  } else {
-    return null;
-  }
+  if (sub.includes(".")) return null;
+  const isPreview = sub.startsWith("preview--");
+  const label = isPreview ? sub.slice(9) : sub;
 
   if (!label) return null;
   const dash = label.lastIndexOf("-");
@@ -76,7 +66,7 @@ export function normalizeHostname(input: string): string {
 // words like "localhost" are rejected). Each label is 1–63 chars, no leading
 // or trailing hyphen; the whole name is at most 253 chars.
 const HOSTNAME_RE =
-  /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+  /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})$/;
 
 export function isValidHostname(host: string): boolean {
   return HOSTNAME_RE.test(host);

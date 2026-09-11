@@ -1,78 +1,59 @@
+import { DomainError } from "@mcphosting/core";
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getOptionalUser } from "@/lib/session";
 import { getService } from "@/lib/service";
 
 type Ctx = { params: Promise<{ projectId: string }> };
-
-function customDomainSetup(hostname: string, targetHost: string) {
-  return {
-    hostname,
-    targetHost,
-    dns: {
-      subdomain: { type: "CNAME", name: hostname, value: targetHost },
-      apex: {
-        type: "ALIAS/ANAME or A",
-        name: hostname,
-        value:
-          "Use ALIAS/ANAME to the target host if your DNS provider supports it; otherwise point A/AAAA to the platform ingress IP configured for this deployment.",
-      },
-    },
-    instructions: [
-      `Open the DNS settings for ${hostname}.`,
-      `For a subdomain, create a CNAME record pointing to ${targetHost}.`,
-      "For an apex/root domain, use ALIAS/ANAME to the target host if available, or use the platform ingress A/AAAA records configured for this deployment.",
-      "Remove conflicting A, AAAA or CNAME records for the same hostname.",
-      "Wait for DNS propagation, then open the hostname. Ask the server operator to configure this domain and its TLS certificate in the reverse proxy.",
-    ],
-  };
+function validation(error: DomainError) {
+  return NextResponse.json({ code: "VALIDATION_ERROR", message: "Проверьте заполнение полей", errors: [{ field: error.field, message: error.message, rule: error.code }] }, { status: 422 });
+}
+async function authorize(ctx: Ctx) {
+  const { projectId } = await ctx.params;
+  const user = await getOptionalUser();
+  const service = getService();
+  const project = user ? await service.getProject(user.id, projectId) : null;
+  return { projectId, user, service, project };
 }
 
-/** List a project's custom domains. */
-export async function GET(_req: Request, { params }: Ctx) {
-  const { projectId } = await params;
-  const user = await getCurrentUser();
-  const service = getService();
-  const project = await service.getProject(user.id, projectId);
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  return NextResponse.json({ domains: await service.listDomains(user.id, projectId) });
+export async function GET(_req: Request, ctx: Ctx) {
+  const { projectId, user, service, project } = await authorize(ctx);
+  if (!user) return NextResponse.json({ code: "UNAUTHENTICATED", message: "Войдите в аккаунт" }, { status: 401 });
+  if (!project) return NextResponse.json({ code: "NOT_FOUND", message: "Проект не найден" }, { status: 404 });
+  return NextResponse.json({ domains: await service.listDomains(user.id, projectId), systemDomainEnabled: project.systemDomainEnabled, setup: await service.domainSetup("") });
 }
 
-/** Attach a custom domain (claim-based ownership). */
-export async function POST(req: Request, { params }: Ctx) {
-  const { projectId } = await params;
-  const user = await getCurrentUser();
-  const service = getService();
-  const project = await service.getProject(user.id, projectId);
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const { hostname } = (await req.json()) as { hostname?: string };
-  if (!hostname) return NextResponse.json({ error: "hostname required" }, { status: 400 });
-
+export async function POST(req: Request, ctx: Ctx) {
+  const { projectId, user, service, project } = await authorize(ctx);
+  if (!user) return NextResponse.json({ code: "UNAUTHENTICATED", message: "Войдите в аккаунт" }, { status: 401 });
+  if (!project) return NextResponse.json({ code: "NOT_FOUND", message: "Проект не найден" }, { status: 404 });
+  const body = await req.json().catch(() => null);
+  if (typeof body?.hostname !== "string") return validation(new DomainError("REQUIRED", "Введите домен."));
   try {
-    const domain = await service.addDomain(user.id, projectId, hostname);
-    const targetHost = new URL(service.hostsFor(project.slug, user.shortId).productionUrl).host;
-    return NextResponse.json({ ok: true, domain, setup: customDomainSetup(domain.hostname, targetHost) });
-  } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    const domain = await service.addDomain(user.id, projectId, body.hostname);
+    return NextResponse.json({ domain, setup: await service.domainSetup(domain.hostname) }, { status: 201 });
+  } catch (error) {
+    if (error instanceof DomainError) return validation(error);
+    throw error;
   }
 }
 
-/** Detach a custom domain. */
-export async function DELETE(req: Request, { params }: Ctx) {
-  const { projectId } = await params;
-  const user = await getCurrentUser();
-  const service = getService();
-  const project = await service.getProject(user.id, projectId);
-  if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+export async function PATCH(req: Request, ctx: Ctx) {
+  const { projectId, user, service, project } = await authorize(ctx);
+  if (!user) return NextResponse.json({ code: "UNAUTHENTICATED", message: "Войдите в аккаунт" }, { status: 401 });
+  if (!project) return NextResponse.json({ code: "NOT_FOUND", message: "Проект не найден" }, { status: 404 });
+  const body = await req.json().catch(() => null);
+  if (typeof body?.systemDomainEnabled !== "boolean") return validation(new DomainError("BOOLEAN", "Укажите, включён ли системный домен.", "systemDomainEnabled"));
+  return NextResponse.json(await service.setSystemDomain(user.id, projectId, body.systemDomainEnabled));
+}
 
-  const { hostname } = (await req.json()) as { hostname?: string };
-  if (!hostname) return NextResponse.json({ error: "hostname required" }, { status: 400 });
-
+export async function DELETE(req: Request, ctx: Ctx) {
+  const { projectId, user, service, project } = await authorize(ctx);
+  if (!user) return NextResponse.json({ code: "UNAUTHENTICATED", message: "Войдите в аккаунт" }, { status: 401 });
+  if (!project) return NextResponse.json({ code: "NOT_FOUND", message: "Проект не найден" }, { status: 404 });
+  const body = await req.json().catch(() => null);
+  if (typeof body?.hostname !== "string") return validation(new DomainError("REQUIRED", "Введите домен."));
   try {
-    await service.removeDomain(user.id, projectId, hostname);
+    await service.removeDomain(user.id, projectId, body.hostname);
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
-  }
+  } catch { return NextResponse.json({ code: "NOT_FOUND", message: "Домен не найден" }, { status: 404 }); }
 }

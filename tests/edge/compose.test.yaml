@@ -1,0 +1,44 @@
+# Used with compose.prod.yaml and a disposable .env file; never deploy this override.
+services:
+  edge:
+    extra_hosts: ['ns.example.test:10.77.42.10']
+    ports: !override []
+    environment:
+      SSL_CERT_FILE: /test-ca/pebble.minica.pem
+    volumes:
+      - ${EDGE_TEST_DIR:?}/pebble.minica.pem:/test-ca/pebble.minica.pem:ro
+    networks:
+      default:
+        ipv4_address: 10.77.42.20
+    depends_on:
+      pebble:
+        condition: service_started
+      dns-provider:
+        condition: service_started
+  dns-provider:
+    image: python:3.13-alpine
+    command: [python, /fixtures/dns-provider.py]
+    volumes: ['./tests/edge:/fixtures:ro']
+    networks:
+      default:
+        ipv4_address: 10.77.42.10
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:2.8.0
+    command: [-config, /test-config/pebble.json, -dnsserver, '10.77.42.10:53']
+    environment:
+      PEBBLE_VA_NOSLEEP: '1'
+      PEBBLE_WFE_NONCEREJECT: '0'
+    volumes:
+      - ${EDGE_TEST_DIR:?}/pebble.json:/test-config/pebble.json:ro
+    networks:
+      default:
+        aliases: [localhost]
+  runner:
+    image: reg2005/mcp-static-hosting:0.2.0
+    profiles: [test]
+    entrypoint: [node, /fixtures/smoke.mjs]
+    volumes: ['./tests/edge:/fixtures:ro']
+networks:
+  default:
+    ipam:
+      config: [{subnet: 10.77.42.0/24}]

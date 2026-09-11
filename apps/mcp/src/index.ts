@@ -10,7 +10,8 @@ import { buildServer } from "./tools.js";
 const PORT = Number(process.env.MCP_PORT ?? 3001);
 
 const service = new ProjectService(getDb(), {
-  baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
+  mainDomain: process.env.MAIN_DOMAIN,
+      baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
   repoRoot: process.env.REPO_ROOT ?? "./data/repos",
   snapshotRoot: process.env.SNAPSHOT_ROOT ?? "./data/snapshots",
   dataRoot: process.env.JSON_DATA_ROOT ?? "./data/json-db",

@@ -27,8 +27,9 @@ docker compose up -d --wait
 ## Продакшен и свой домен
 
 В репозитории есть отдельный [compose.prod.yaml](../compose.prod.yaml) с образами
-`reg2005/mcp-static-hosting:0.1.0` и `reg2005/mcp-static-hosting-functions:0.1.0`
-для `linux/amd64` (x86-64). Сборка на сервере не требуется.
+`reg2005/mcp-static-hosting:0.2.0` и `reg2005/mcp-static-hosting-functions:0.2.0`
+и `reg2005/mcp-static-hosting-edge:0.2.0`
+для `linux/amd64` (x86-64). Включены Nginx и контроллер сертификатов. Сборка на сервере не требуется.
 
 ```sh
 sh scripts/setup.sh --production
@@ -37,11 +38,34 @@ sh scripts/compose-prod.sh pull
 sh scripts/compose-prod.sh up -d --wait
 ```
 
-В `.env.production` задайте `AUTH_BASE_URL=https://panel.example.com`,
-`MCP_PUBLIC_URL=https://mcp.example.com/mcp`, `PUBLIC_BASE_DOMAIN=sites.example.net`.
-Замените примеры своими доменами. Настройте DNS, TLS и reverse proxy по
-[инструкции](deployment.md). Для пользовательских сайтов используйте отдельный
-регистрируемый домен от панели. Порты по умолчанию доступны только на localhost.
+В `.env.production` задайте `MAIN_DOMAIN=example.com`, `ACME_EMAIL` и `DNS_PROVIDER`.
+Создайте A-записи для `example.com` и `*.example.com` на внешний IP сервера и файл
+`secrets/dns.env` с доступом к DNS API. Примеры для Cloudflare, Route 53, DigitalOcean,
+OVH, Hetzner и Selectel v2 приведены прямо в [README](../README.md#dns-credentials-five-common-providers-plus-selectel-v2).
+Доступны все автоматические провайдеры lego; отдельная сборка не нужна.
+
+При старте выпускается сертификат `example.com` + `*.example.com` через DNS-01.
+Панель находится на `https://example.com`, MCP — `https://example.com/mcp`.
+Открыты только порты 80/443. Сертификаты продлеваются автоматически.
+
+`MANAGEMENT_ALLOWED_CIDRS=192.0.2.0/24,2001:db8::/32` ограничивает доступ к панели,
+авторизации и MCP. Укажите свои подсети. Пустое значение разрешает любой IP.
+Это не отключает парольную авторизацию и не открывает регистрацию автоматически.
+На посетителей сайтов ограничение не распространяется.
+
+Проект получает `slug-userId.example.com` и `preview--slug-userId.example.com`.
+Пользователь может выключить оба системных адреса переключателем в редакторе.
+Собственные домены продолжают работать.
+
+При добавлении своего домена `adas.com` панель показывает A-запись с внешним IPv4
+текущего сервера. IP определяется автоматически; за NAT можно задать `PUBLIC_IPV4`.
+Домен `sdfsd.example.com` будет отклонён: зона MAIN_DOMAIN принадлежит платформе.
+DNS проверяется примерно раз в минуту. Когда все A/AAAA указывают на этот сервер,
+автоматически выпускается обычный сертификат через HTTP-01 на порту 80.
+Состояние DNS/HTTPS и ошибки видны в панели, неудачные попытки повторяются с паузами.
+
+Подробные требования, права на файл credentials и порядок установки — в
+[инструкции](deployment.md).
 
 Регистрация в production закрыта. Для создания первого аккаунта временно задайте
 `SIGNUPS_ENABLED=true` и выполните `sh scripts/compose-prod.sh up -d`.
@@ -53,8 +77,9 @@ sh scripts/compose-prod.sh up -d --wait
 ## Ограничения
 
 Ранний выпуск для одного сервера и доверенных авторов. Серверные Deno-функции
-экспериментальные и выключены по умолчанию. Нет автоматической DNS-проверки владения
-доменом и автоматической выдачи wildcard TLS. Не заявляется готовность к публичному
+экспериментальные и выключены по умолчанию. Совпадение DNS доказывает направление
+домена на сервер, но не принадлежность зоны конкретному аккаунту панели.
+Не заявляется готовность к публичному
 многопользовательскому сервису с недоверенными авторами.
 
 - [Настройки](configuration.md)

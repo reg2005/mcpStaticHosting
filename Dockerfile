@@ -11,6 +11,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.js
 COPY apps/web/package.json apps/web/
 COPY apps/mcp/package.json apps/mcp/
 COPY apps/router/package.json apps/router/
+COPY apps/edge/package.json apps/edge/
 COPY apps/functions/package.json apps/functions/
 COPY packages/auth/package.json packages/auth/
 COPY packages/core/package.json packages/core/

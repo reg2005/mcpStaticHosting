@@ -1,6 +1,7 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -40,6 +41,7 @@ export const projects = pgTable("projects", {
    * plaintext. Null = publicly viewable.
    */
   passwordHash: text("password_hash"),
+  systemDomainEnabled: boolean("system_domain_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -73,7 +75,11 @@ export const domains = pgTable(
     isPreview: boolean("is_preview").notNull().default(false),
     /** Custom domains must be DNS-verified before they go live. */
     verified: boolean("verified").notNull().default(false),
-    verificationToken: text("verification_token"),
+    dnsStatus: text("dns_status").notNull().default("pending"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer("attempts").notNull().default(0),
     tls: tlsStatus("tls").notNull().default("pending"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -105,3 +111,10 @@ export type Project = typeof projects.$inferSelect;
 export type Release = typeof releases.$inferSelect;
 export type Domain = typeof domains.$inferSelect;
 export type EnvVar = typeof envVars.$inferSelect;
+
+/** The edge worker publishes its detected addresses for dashboard/MCP instructions. */
+export const instanceState = pgTable("instance_state", {
+  id: text("id").primaryKey(),
+  value: jsonb("value").$type<{ ipv4: string | null; ipv6: string | null; wildcardTls: string; error: string | null }>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

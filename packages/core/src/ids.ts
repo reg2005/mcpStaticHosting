@@ -9,7 +9,7 @@ export const newUserShortId = customAlphabet(alphabet, 8);
 /** Random site slug used when the user doesn't pick a name. */
 export const newRandomSlug = customAlphabet(alphabet, 10);
 
-const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,40}[a-z0-9])?$/;
 
 /** Normalize a user-supplied name into a DNS-safe slug. */
 export function slugify(input: string): string {
@@ -18,7 +18,7 @@ export function slugify(input: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 63);
+    .slice(0, 42).replace(/-+$/, "");
   return slug || newRandomSlug();
 }
 

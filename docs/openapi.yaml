@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MCP Static Hosting HTTP transport
-  version: 0.1.0
+  version: 0.2.0
   license:
     name: MIT
     url: https://opensource.org/license/mit
@@ -10,10 +10,10 @@ info:
     Tokens grant owner-scoped access to all project tools; no finer scopes.
     Rate limit defaults to 600 requests/minute/token, fails open on Redis failure.
     No idempotency-key support; inspect release state before retrying mutations.
-    Dashboard REST and authentication UI endpoints are internal, unsupported APIs.
+    The domain dashboard API is documented below; other dashboard endpoints are internal.
     Tool validation/errors follow MCP JSON-RPC; HTTP 422 is not used for this envelope.
 servers:
-  - url: https://mcp.example.com
+  - url: https://example.com
 paths:
   /healthz:
     get:
@@ -58,6 +58,7 @@ paths:
         '202': { description: Notification accepted }
         '400': { description: Invalid JSON-RPC request }
         '401': { description: Missing or invalid bearer token }
+        '403': { description: Source IP is outside MANAGEMENT_ALLOWED_CIDRS }
         '404': { description: Unsupported method or endpoint }
         '406': { description: Client must accept JSON and event-stream responses }
         '429':
@@ -67,8 +68,155 @@ paths:
               schema: { type: integer }
               description: Seconds until the rate window resets
         '500': { description: Unexpected internal failure }
+  /api/projects/{projectId}/domains:
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      summary: List domain connection status and instance IP
+      operationId: listProjectDomains
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Owner-scoped domain state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [domains, systemDomainEnabled, setup]
+                properties:
+                  domains:
+                    type: array
+                    items: { $ref: '#/components/schemas/Domain' }
+                  systemDomainEnabled: { type: boolean }
+                  setup: { $ref: '#/components/schemas/DomainSetup' }
+        '401': { description: No authenticated session }
+        '404': { description: Project not owned by the current user }
+        '403': { description: IP not allowed by management policy }
+    post:
+      summary: Attach a custom domain outside MAIN_DOMAIN
+      operationId: addProjectDomain
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hostname]
+              properties:
+                hostname: { type: string, example: adas.com }
+      responses:
+        '201':
+          description: Reserved; waiting for DNS and automatic HTTP-01 TLS
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain: { $ref: '#/components/schemas/Domain' }
+                  setup: { $ref: '#/components/schemas/DomainSetup' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: No authenticated session }
+        '404': { description: Project not owned by the current user }
+        '403': { description: IP not allowed by management policy }
+    patch:
+      summary: Toggle both system production and preview addresses
+      operationId: toggleSystemDomain
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [systemDomainEnabled]
+              properties:
+                systemDomainEnabled: { type: boolean }
+      responses:
+        '200':
+          description: Setting saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systemDomainEnabled: { type: boolean }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: No authenticated session }
+        '404': { description: Project not owned by the current user }
+        '403': { description: IP not allowed by management policy }
+    delete:
+      summary: Remove a custom domain
+      operationId: removeProjectDomain
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hostname]
+              properties:
+                hostname: { type: string }
+      responses:
+        '200': { description: Domain removed }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: No authenticated session }
+        '404': { description: Project or domain not owned by the current user }
+        '403': { description: IP not allowed by management policy }
 components:
+  responses:
+    ValidationError:
+      description: Localized field validation failure
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message, errors]
+            properties:
+              code: { type: string, const: VALIDATION_ERROR }
+              message: { type: string }
+              errors:
+                type: array
+                items:
+                  type: object
+                  required: [field, message, rule]
+                  properties:
+                    field: { type: string }
+                    message: { type: string }
+                    rule: { type: string }
+  schemas:
+    Domain:
+      type: object
+      properties:
+        hostname: { type: string }
+        verified: { type: boolean }
+        dnsStatus: { type: string, enum: [pending, matched] }
+        tls: { type: string, enum: [pending, active, failed] }
+        lastError: { type: [string, 'null'] }
+        lastCheckedAt: { type: [string, 'null'], format: date-time }
+    DomainSetup:
+      type: object
+      properties:
+        hostname: { type: string }
+        publicIpv4: { type: [string, 'null'] }
+        publicIpv6: { type: [string, 'null'] }
+        instructions: { type: string }
+        dns:
+          type: object
+          properties:
+            type: { type: string, const: A }
+            name: { type: string }
+            value: { type: [string, 'null'] }
   securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-mcphosting.session_token
+      description: Host-bound authenticated dashboard session; source IP restriction also applies
     bearerAuth:
       type: http
       scheme: bearer

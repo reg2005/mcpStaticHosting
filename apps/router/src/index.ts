@@ -31,7 +31,8 @@ const PORT = Number(process.env.ROUTER_PORT ?? 3002);
 const FUNCTIONS_URL = process.env.FUNCTIONS_URL ?? "http://localhost:3003";
 
 const service = new ProjectService(getDb(), {
-  baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
+  mainDomain: process.env.MAIN_DOMAIN,
+      baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
   repoRoot: process.env.REPO_ROOT ?? "./data/repos",
   snapshotRoot: process.env.SNAPSHOT_ROOT ?? "./data/snapshots",
   dataRoot: process.env.JSON_DATA_ROOT ?? "./data/json-db",
@@ -40,14 +41,6 @@ const service = new ProjectService(getDb(), {
 });
 
 const app = new Hono();
-
-/** Caddy on-demand TLS gate: only issue certs for hosts we actually serve. */
-app.get("/_internal/tls-check", async (c) => {
-  const domain = c.req.query("domain");
-  if (!domain) return c.text("missing domain", 400);
-  const site = await service.resolveSite(domain);
-  return site ? c.text("ok", 200) : c.text("unknown host", 403);
-});
 
 app.get("/healthz", (c) => c.json({ ok: true }));
 

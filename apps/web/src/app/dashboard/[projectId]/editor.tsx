@@ -1,5 +1,6 @@
 "use client";
 
+import { DomainPanel } from "./domain-panel";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 loader.config({ paths: { vs: "/monaco/vs" } });
 import type { Monaco } from "@monaco-editor/react";
@@ -224,7 +225,7 @@ interface Props {
   previewSrc: string;
   productionUrl: string;
   passwordProtected: boolean;
-  domains: string[];
+  systemDomainEnabled: boolean;
   secrets: string[];
   releases: Release[];
   dataCollections: DataCollection[];
@@ -237,7 +238,7 @@ export function Editor({
   previewSrc: initialPreviewSrc,
   productionUrl,
   passwordProtected: initialProtected,
-  domains: initialDomains,
+  systemDomainEnabled: initialSystemDomainEnabled,
   secrets: initialSecrets,
   releases: initialReleases,
   dataCollections: initialDataCollections,
@@ -251,7 +252,7 @@ export function Editor({
   const [status, setStatus] = useState("");
   const [locked, setLocked] = useState(initialProtected);
   const [previewSrc, setPreviewSrc] = useState(initialPreviewSrc);
-  const [domains, setDomains] = useState(initialDomains);
+  const [systemDomainEnabled, setSystemDomainEnabled] = useState(initialSystemDomainEnabled);
   const [secrets, setSecrets] = useState(initialSecrets);
   const [releases, setReleases] = useState(initialReleases);
   const [dataCollections, setDataCollections] = useState(initialDataCollections);
@@ -271,14 +272,6 @@ export function Editor({
   const [mobileView, setMobileView] = useState<"files" | "code" | "site" | "data">("code");
 
   const tree = useMemo(() => buildTree(files), [files]);
-
-  const cnameTarget = (() => {
-    try {
-      return new URL(productionUrl).host;
-    } catch {
-      return productionUrl;
-    }
-  })();
 
   const loadFile = useCallback(
     async (path: string) => {
@@ -524,39 +517,6 @@ export function Editor({
     setStatus("🔓 Password removed — site is public");
   }
 
-  // --- Custom domains ---
-
-  async function addDomain() {
-    const hostname = window.prompt(
-      `Add a custom domain. Point its DNS (CNAME or A) at:\n${cnameTarget}`,
-    );
-    if (!hostname) return;
-    setStatus("Adding domain…");
-    const res = await fetch(`/api/projects/${projectId}/domains`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ hostname }),
-    });
-    const data = await res.json();
-    if (!res.ok) return setStatus(`⚠️ ${data.error ?? "Failed to add domain"}`);
-    setDomains((d) => [data.domain.hostname, ...d.filter((h) => h !== data.domain.hostname)]);
-    setStatus(`🌐 ${data.domain.hostname} added — point DNS at ${data.setup?.targetHost ?? cnameTarget}`);
-  }
-
-  async function removeDomain(hostname: string) {
-    if (!window.confirm(`Remove ${hostname}? It will stop serving this site.`)) return;
-    setStatus("Removing domain…");
-    const res = await fetch(`/api/projects/${projectId}/domains`, {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ hostname }),
-    });
-    const data = await res.json();
-    if (!res.ok) return setStatus(`⚠️ ${data.error ?? "Failed to remove domain"}`);
-    setDomains((d) => d.filter((h) => h !== hostname));
-    setStatus(`Removed ${hostname}`);
-  }
-
   // --- Secrets (ctx.env) ---
 
   async function addSecret() {
@@ -754,12 +714,7 @@ export function Editor({
         />
       </div>
 
-      <SectionHeader label="Domains">
-        <IconButton onClick={addDomain} title="Add a custom domain">
-          +
-        </IconButton>
-      </SectionHeader>
-      <PanelList items={domains} empty="No custom domains yet." onRemove={removeDomain} />
+      <DomainPanel projectId={projectId} productionUrl={productionUrl} onSystemChange={setSystemDomainEnabled} />
 
       <SectionHeader label="Secrets">
         <IconButton onClick={addSecret} title="Add a secret (ctx.env)">
@@ -837,12 +792,16 @@ export function Editor({
     />
   );
 
-  const sitePane = (width: string) => (
+  const sitePane = (width: string) => systemDomainEnabled ? (
     <iframe
       title="preview"
       src={previewSrc}
       style={{ width, height: "100%", border: "none", borderLeft: "1px solid #1f242b", background: "white" }}
     />
+  ) : (
+    <div style={{ width, display: "grid", placeItems: "center", padding: 24, boxSizing: "border-box", color: "#9aa3ad" }}>
+      Системный домен выключен. Включите его в разделе «Домены и HTTPS», чтобы открыть preview.
+    </div>
   );
 
   // --- Mobile: single panel at a time, switched via Files | Code | Site tabs ---

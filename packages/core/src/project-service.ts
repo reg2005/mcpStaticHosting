@@ -1,13 +1,12 @@
+import { DomainError, validateCustomDomain } from "./domain-policy.js";
 import { randomUUID } from "node:crypto";
 import { and, count, desc, eq, max } from "drizzle-orm";
-import { type Db, domains, envVars, projects, releases, user } from "@mcphosting/db";
+import { type Db, domains, envVars, projects, releases, user, instanceState } from "@mcphosting/db";
 import { decryptSecret, encryptSecret, hashPassword } from "./crypto.js";
 import { GitStore } from "./git-store.js";
 import { isValidSlug, newRandomSlug, newUserShortId, slugify } from "./ids.js";
 import { JsonDataStore } from "./json-data-store.js";
 import {
-  isReservedHost,
-  isValidHostname,
   normalizeHostname,
   previewHost,
   productionHost,
@@ -22,6 +21,7 @@ export const MAX_CUSTOM_DOMAINS_PER_USER = 40;
 
 export interface ProjectServiceConfig {
   baseDomain: string;
+  mainDomain?: string;
   repoRoot: string;
   snapshotRoot: string;
   dataRoot?: string;
@@ -114,7 +114,7 @@ export class ProjectService {
       .from(projects)
       .where(and(eq(projects.userId, userId), eq(projects.slug, slug)))
       .limit(1);
-    if (existing.length > 0) slug = `${slug}-${newRandomSlug().slice(0, 4)}`;
+    if (existing.length > 0) slug = `${slug.slice(0, 37)}-${newRandomSlug().slice(0, 4)}`;
 
     const [project] = await this.db
       .insert(projects)
@@ -300,6 +300,9 @@ export class ProjectService {
       .select({
         hostname: domains.hostname,
         verified: domains.verified,
+        dnsStatus: domains.dnsStatus,
+        lastCheckedAt: domains.lastCheckedAt,
+        lastError: domains.lastError,
         tls: domains.tls,
         createdAt: domains.createdAt,
       })
@@ -318,29 +321,14 @@ export class ProjectService {
     return row?.n ?? 0;
   }
 
-  /**
-   * Attach a custom domain to a project. Verification is claim-based: the first
-   * account to add a hostname owns it (enforced by the unique index on
-   * domains.hostname). The owner points DNS at the platform and Caddy issues a
-   * cert on demand once the router confirms we serve the host.
-   */
+  /** Reserve a domain; the worker verifies public DNS before enabling traffic. */
   async addDomain(userId: string, ref: string, hostnameInput: string) {
     const project = await this.requireProject(userId, ref);
-    const hostname = normalizeHostname(hostnameInput);
-    if (!isValidHostname(hostname)) {
-      throw new Error(`Invalid domain: ${hostnameInput}`);
-    }
-    if (isReservedHost(hostname, this.config.baseDomain)) {
-      throw new Error(
-        `${hostname} is managed by the platform and can't be added as a custom domain`,
-      );
-    }
+    const hostname = validateCustomDomain(hostnameInput, this.config.mainDomain ?? this.config.baseDomain, this.config.baseDomain);
 
     const used = await this.countUserDomains(userId);
     if (used >= MAX_CUSTOM_DOMAINS_PER_USER) {
-      throw new Error(
-        `Domain limit reached (${MAX_CUSTOM_DOMAINS_PER_USER}). Remove one or upgrade your plan.`,
-      );
+      throw new DomainError("DOMAIN_LIMIT", `Достигнут лимит: ${MAX_CUSTOM_DOMAINS_PER_USER} доменов на аккаунт.`);
     }
 
     try {
@@ -351,16 +339,14 @@ export class ProjectService {
           hostname,
           type: "custom",
           isPreview: false,
-          // Claim-based: the row's existence is the verification.
-          verified: true,
-          // Caddy issues the certificate on the first request to the host.
+          verified: false,
           tls: "pending",
         })
         .returning();
       if (!domain) throw new Error("Failed to add domain");
-      return { hostname: domain.hostname, verified: domain.verified, tls: domain.tls };
+      return { hostname: domain.hostname, verified: domain.verified, tls: domain.tls, dnsStatus: domain.dnsStatus, lastError: domain.lastError, lastCheckedAt: domain.lastCheckedAt };
     } catch (err) {
-      if (isUniqueViolation(err)) throw new Error(`${hostname} is already claimed`);
+      if (isUniqueViolation(err)) throw new DomainError("DOMAIN_TAKEN", "Этот домен уже подключён к другому проекту.");
       throw err;
     }
   }
@@ -381,6 +367,25 @@ export class ProjectService {
       .returning({ hostname: domains.hostname });
     if (deleted.length === 0) throw new Error(`Domain not found: ${hostname}`);
     return { hostname };
+  }
+
+  async setSystemDomain(userId: string, ref: string, enabled: boolean) {
+    const project = await this.requireProject(userId, ref);
+    await this.db.update(projects).set({ systemDomainEnabled: enabled, updatedAt: new Date() }).where(eq(projects.id, project.id));
+    return { systemDomainEnabled: enabled };
+  }
+
+  async domainSetup(hostname: string) {
+    if (hostname) hostname = validateCustomDomain(hostname, this.config.mainDomain ?? this.config.baseDomain, this.config.baseDomain);
+    const [state] = await this.db.select().from(instanceState).where(eq(instanceState.id, "edge")).limit(1);
+    const publicIpv4 = state?.value.ipv4 ?? process.env.PUBLIC_IPV4 ?? null;
+    return {
+      hostname, publicIpv4, publicIpv6: state?.value.ipv6 ?? null,
+      dns: { type: "A", name: hostname, value: publicIpv4 },
+      instructions: publicIpv4
+        ? `Создайте A-запись ${hostname} → ${publicIpv4}. Удалите конфликтующие A, AAAA и CNAME. DNS проверяется автоматически; после совпадения адресов будет выпущен HTTPS-сертификат.`
+        : "Внешний IPv4 пока не определён. Контроллер повторит попытку автоматически; администратор может указать PUBLIC_IPV4.",
+    };
   }
 
   // --- Site password protection ---
@@ -421,14 +426,14 @@ export class ProjectService {
       .from(domains)
       .where(eq(domains.hostname, host))
       .limit(1);
-    if (!domain || !domain.verified) return null;
+    if (!domain || !domain.verified || (domain.type === "custom" && domain.tls !== "active")) return null;
 
     const [project] = await this.db
       .select()
       .from(projects)
       .where(eq(projects.id, domain.projectId))
       .limit(1);
-    if (!project) return null;
+    if (!project || (domain.type === "subdomain" && !project.systemDomainEnabled)) return null;
 
     const passwordHash = project.passwordHash ?? null;
 
@@ -466,6 +471,6 @@ export class ProjectService {
 /** Postgres unique-constraint violation (e.g. a hostname already claimed). */
 function isUniqueViolation(err: unknown): boolean {
   return (
-    typeof err === "object" && err !== null && (err as { code?: string }).code === "23505"
+    typeof err === "object" && err !== null && ((err as { code?: string }).code === "23505" || isUniqueViolation((err as { cause?: unknown }).cause))
   );
 }

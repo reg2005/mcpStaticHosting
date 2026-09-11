@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { leadTemplateFiles, type ProjectService } from "@mcphosting/core";
+import { DomainError, leadTemplateFiles, type ProjectService } from "@mcphosting/core";
 import type { User } from "@mcphosting/db";
 import { Redis } from "ioredis";
 import { z } from "zod";
@@ -33,33 +33,6 @@ Simple request flow:
 Use install_lead_template for a ready-to-edit example. Use list_data_collections
 and list_data_records to inspect submissions saved by ctx.data.`;
 
-function customDomainSetup(hostname: string, targetHost: string) {
-  return {
-    hostname,
-    targetHost,
-    dns: {
-      subdomain: {
-        type: "CNAME",
-        name: hostname,
-        value: targetHost,
-      },
-      apex: {
-        type: "ALIAS/ANAME or A",
-        name: hostname,
-        value:
-          "Use ALIAS/ANAME to the target host if your DNS provider supports it; otherwise point A/AAAA to the platform ingress IP configured for this deployment.",
-      },
-    },
-    instructions: [
-      `Open the DNS settings for ${hostname}.`,
-      `For a subdomain such as www.${hostname}, create a CNAME record pointing to ${targetHost}.`,
-      "For an apex/root domain, use ALIAS/ANAME to the target host if available, or use the platform ingress A/AAAA records configured for this deployment.",
-      "Remove conflicting A, AAAA or CNAME records for the same hostname.",
-      "Wait for DNS propagation, then open the hostname in a browser. Ask the server operator to configure this domain and its TLS certificate in the reverse proxy.",
-    ],
-  };
-}
-
 let redis: Redis | undefined;
 function getRedis(): Redis {
   if (!redis) redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
@@ -68,7 +41,7 @@ function getRedis(): Redis {
 
 /** Build an MCP server whose tools are scoped to one authenticated user. */
 export function buildServer(service: ProjectService, user: User): McpServer {
-  const server = new McpServer({ name: "mcphosting", version: "0.1.0" });
+  const server = new McpServer({ name: "mcphosting", version: "0.2.0" });
 
   const json = (data: unknown) => ({
     content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
@@ -252,17 +225,17 @@ export function buildServer(service: ProjectService, user: User): McpServer {
 
   server.tool(
     "add_domain",
-    "Attach any valid custom domain to a project (white-label) and return DNS instructions for the user. Verification is claim-based: whoever adds a hostname first owns it. TLS must be configured by the server operator in the reverse proxy. Basic tier allows up to 40 domains per account.",
+    "Attach a custom domain outside MAIN_DOMAIN. Returns the instance IPv4 for an A record. DNS verification and HTTP-01 HTTPS issuance are automatic; up to 40 domains per account.",
     { project: z.string(), hostname: z.string().describe("e.g. www.example.com") },
     async ({ project, hostname }) => {
       const p = await mustOwn(service, user.id, project);
-      const domain = await service.addDomain(user.id, p.id, hostname);
-      const targetHost = new URL(service.hostsFor(p.slug, user.shortId).productionUrl).host;
-      return json({
-        ok: true,
-        domain,
-        setup: customDomainSetup(domain.hostname, targetHost),
-      });
+      try {
+        const domain = await service.addDomain(user.id, p.id, hostname);
+        return json({ ok: true, domain, setup: await service.domainSetup(domain.hostname) });
+      } catch (error) {
+        if (!(error instanceof DomainError)) throw error;
+        return { ...json({ code: "VALIDATION_ERROR", message: "Проверьте заполнение полей", errors: [{ field: error.field, message: error.message, rule: error.code }] }), isError: true };
+      }
     },
   );
 
@@ -272,8 +245,7 @@ export function buildServer(service: ProjectService, user: User): McpServer {
     { project: z.string(), hostname: z.string().describe("e.g. www.example.com") },
     async ({ project, hostname }) => {
       const p = await mustOwn(service, user.id, project);
-      const targetHost = new URL(service.hostsFor(p.slug, user.shortId).productionUrl).host;
-      return json(customDomainSetup(hostname, targetHost));
+      return json(await service.domainSetup(hostname));
     },
   );
 
@@ -289,6 +261,13 @@ export function buildServer(service: ProjectService, user: User): McpServer {
     "Detach a custom domain from a project (frees it for others to claim).",
     { project: z.string(), hostname: z.string() },
     async ({ project, hostname }) => json(await service.removeDomain(user.id, project, hostname)),
+  );
+
+  server.tool(
+    "set_system_domain",
+    "Enable or disable both automatically assigned system addresses (production and preview). Custom domains remain available.",
+    { project: z.string(), enabled: z.boolean() },
+    async ({ project, enabled }) => json(await service.setSystemDomain(user.id, project, enabled)),
   );
 
   // --- Backend functions: secrets + logs ---

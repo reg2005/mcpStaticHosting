@@ -45,7 +45,7 @@ Example prompt for your agent:
 
 The default site domain is `lvh.me`, whose wildcard DNS resolves to the local machine.
 Site URLs look like `http://hello-abc12345.lvh.me:3002` and
-`http://hello-abc12345.preview.lvh.me:3002`. If your resolver blocks loopback DNS,
+`http://preview--hello-abc12345.lvh.me:3002`. If your resolver blocks loopback DNS,
 add the individual hostnames to your hosts file or configure local wildcard DNS.
 
 Default ports bind to **127.0.0.1**. For a remote server, configure DNS and a TLS
@@ -58,14 +58,14 @@ an existing configuration. `docker compose down` preserves data; adding `-v` del
 ## Production installation
 
 The standalone [compose.prod.yaml](compose.prod.yaml) uses
-`reg2005/mcp-static-hosting:0.1.0` and the optional
-`reg2005/mcp-static-hosting-functions:0.1.0`, both for `linux/amd64`.
+`reg2005/mcp-static-hosting:0.2.0`, `reg2005/mcp-static-hosting-edge:0.2.0`
+and optional `reg2005/mcp-static-hosting-functions:0.2.0`, all for `linux/amd64`.
 It contains no builds or installation secrets.
 
 ```sh
 sh scripts/setup.sh --production
-# Edit .env.production: AUTH_BASE_URL, MCP_PUBLIC_URL, PUBLIC_BASE_DOMAIN, EMAIL_FROM.
-# Configure DNS and your TLS reverse proxy (see the deployment guide).
+# Set MAIN_DOMAIN, ACME_EMAIL, DNS_PROVIDER in .env.production.
+# Create MAIN_DOMAIN / *.MAIN_DOMAIN A records and secrets/dns.env (deployment guide).
 sh scripts/compose-prod.sh pull
 sh scripts/compose-prod.sh up -d --wait
 ```
@@ -80,8 +80,9 @@ TLS. The compose wrapper is equivalent to
 
 | Image/service | Purpose |
 | --- | --- |
-| `reg2005/mcp-static-hosting:0.1.0` | Shared image for web, MCP, router and one-shot migrations |
-| `reg2005/mcp-static-hosting-functions:0.1.0` | Optional Deno function runtime |
+| `reg2005/mcp-static-hosting:0.2.0` | Shared image for web, MCP, router and one-shot migrations |
+| `reg2005/mcp-static-hosting-edge:0.2.0` | Nginx, DNS checks and automatic certificates |
+| `reg2005/mcp-static-hosting-functions:0.2.0` | Optional Deno function runtime |
 | `postgres:17-alpine` | Accounts, API keys, projects and release metadata |
 | `redis:7-alpine` | Rate limits, function KV and function logs |
 
@@ -93,7 +94,7 @@ Use a version tag or digest in production. See [release instructions](docs/relea
 
 ```mermaid
 flowchart LR
-  Browser --> Proxy[TLS reverse proxy]
+  Browser --> Proxy[Nginx + certificate controller]
   Agent[MCP client] --> Proxy
   Proxy --> Web[Web dashboard]
   Proxy --> MCP[MCP server]
@@ -144,3 +145,80 @@ preview isolation, static files and access boundaries. See `scripts/smoke.mjs` a
 ## License
 
 [MIT](LICENSE). Dependencies retain their own licenses. See [NOTICE](NOTICE).
+
+## Automatic domains, Nginx and HTTPS
+
+The production stack includes Nginx and a certificate controller. Set `MAIN_DOMAIN`,
+`ACME_EMAIL`, `DNS_PROVIDER` in `.env.production`, provide `secrets/dns.env`, and start
+[compose.prod.yaml](compose.prod.yaml). Create the initial A records for `MAIN_DOMAIN`
+and `*.MAIN_DOMAIN` pointing to your server. Full [installation steps](docs/deployment.md).
+
+- At startup: DNS-01 certificate for `MAIN_DOMAIN` + `*.MAIN_DOMAIN`, with automatic renewal.
+- Each project gets a production and preview subdomain; the owner can disable both.
+- Custom domains under `MAIN_DOMAIN` are rejected. Other domains show the exact
+  instance IPv4 for an A record; DNS is checked periodically and HTTP-01 certificates
+  are issued automatically once all A/AAAA records point to this instance.
+- `MANAGEMENT_ALLOWED_CIDRS` limits dashboard/authentication/API/MCP access. Empty
+  means no IP restriction. Hosted sites remain public. Authentication still applies.
+
+### DNS credentials: five common providers plus Selectel v2
+
+Copy **one** example to
+`secrets/dns.env`; use the matching `DNS_PROVIDER` value. Fill empty values with your
+provider credentials. Never commit the resulting file. Directory/file permissions
+are covered in [deployment](docs/deployment.md#first-installation).
+
+**Cloudflare** — `DNS_PROVIDER=cloudflare`, [example](examples/dns/cloudflare.env.example).
+Use a zone-scoped token with Zone:Read and DNS:Edit ([provider docs](https://go-acme.github.io/lego/dns/cloudflare/)).
+
+```dotenv
+CF_DNS_API_TOKEN=
+```
+
+**AWS Route 53** — `DNS_PROVIDER=route53`, [example](examples/dns/route53.env.example).
+Limit IAM permissions to the hosted zone ([provider docs and policy](https://go-acme.github.io/lego/dns/route53/)).
+
+```dotenv
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+AWS_HOSTED_ZONE_ID=
+```
+
+**DigitalOcean** — `DNS_PROVIDER=digitalocean`, [example](examples/dns/digitalocean.env.example).
+Use a token permitted to manage domain records ([provider docs](https://go-acme.github.io/lego/dns/digitalocean/)).
+
+```dotenv
+DO_AUTH_TOKEN=
+```
+
+**OVH** — `DNS_PROVIDER=ovh`, [example](examples/dns/ovh.env.example).
+Restrict the API application to your zone ([provider docs](https://go-acme.github.io/lego/dns/ovh/)).
+
+```dotenv
+OVH_ENDPOINT=ovh-eu
+OVH_APPLICATION_KEY=
+OVH_APPLICATION_SECRET=
+OVH_CONSUMER_KEY=
+```
+
+**Hetzner** — `DNS_PROVIDER=hetzner`, [example](examples/dns/hetzner.env.example).
+Use a DNS token for the project containing the zone ([provider docs](https://go-acme.github.io/lego/dns/hetzner/)).
+
+```dotenv
+HETZNER_API_TOKEN=
+```
+
+**Selectel v2** — `DNS_PROVIDER=selectelv2`, [example](examples/dns/selectelv2.env.example).
+Use a service user, its password, account ID and project UUID ([provider docs](https://go-acme.github.io/lego/dns/selectelv2/)).
+
+```dotenv
+SELECTELV2_USERNAME=
+SELECTELV2_PASSWORD=
+SELECTELV2_ACCOUNT_ID=
+SELECTELV2_PROJECT_ID=
+```
+
+Other providers from the [lego catalogue](https://go-acme.github.io/lego/dns/) work
+through the same credentials file; no provider-specific image build is required.
+Interactive `manual` and command-executing `exec` providers are intentionally excluded.

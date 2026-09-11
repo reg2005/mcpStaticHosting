@@ -6,3 +6,4 @@ export * from "./function-templates.js";
 export * from "./git-store.js";
 export * from "./json-data-store.js";
 export * from "./project-service.js";
+export * from "./domain-policy.js";

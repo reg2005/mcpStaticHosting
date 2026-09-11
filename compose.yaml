@@ -22,7 +22,7 @@ x-env: &env
 
 x-app: &app
   platform: linux/amd64
-  image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting:${IMAGE_TAG:-0.1.0}
+  image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting:${IMAGE_TAG:-0.2.0}
   environment: *env
   restart: unless-stopped
   init: true
@@ -97,7 +97,7 @@ services:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   functions:
     platform: linux/amd64
-    image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting-functions:${IMAGE_TAG:-0.1.0}
+    image: ${IMAGE_NAMESPACE:-reg2005}/mcp-static-hosting-functions:${IMAGE_TAG:-0.2.0}
     profiles: [functions]
     user: '1000:1000'
     init: true

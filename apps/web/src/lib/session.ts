@@ -5,8 +5,7 @@ import type { User } from "@mcphosting/db";
 import { getService } from "./service";
 
 /**
- * Resolve the current user from the better-auth session. Until the login/sign-up
- * UI lands, a local dev user is returned as a fallback (never in production).
+ * Resolve the current user from the authenticated Better Auth session.
  */
 
 

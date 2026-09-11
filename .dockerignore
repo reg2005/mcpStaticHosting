@@ -13,3 +13,6 @@ backups
 docs
 tests
 apps/web/public/monaco
+
+secrets
+edge-data

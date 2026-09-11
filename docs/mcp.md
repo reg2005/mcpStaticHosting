@@ -48,3 +48,20 @@ supported external integration API. A minimal [OpenAPI transport specification](
 describes the externally exposed HTTP envelope; MCP tool schemas are discovered via
 the protocol and are the authoritative tool contract. Breaking tool changes before
 1.0 require a minor version increment and release notes.
+
+## Automatic domains (0.2.0)
+
+`add_domain` accepts a bare external hostname; the MAIN_DOMAIN zone is reserved.
+The result has `domain` (hostname, verified, dnsStatus, tls, lastError, lastCheckedAt)
+and `setup` (`dns: {type: "A", name, value}`, publicIpv4, publicIpv6, instructions).
+If public IPv4 detection is pending, `value` is null; retry `custom_domain_guide` later.
+No operator proxy change is required. Poll `list_domains` for `tls: "active"`.
+
+Invalid domain input returns a tool result with `isError: true` and JSON text:
+`{code:"VALIDATION_ERROR", message:"Проверьте заполнение полей", errors:[{field:"hostname", message:"...", rule:"RESERVED_DOMAIN"}]}`.
+Other domain rules are `INVALID_DOMAIN`, `DOMAIN_TAKEN` and `DOMAIN_LIMIT`.
+
+`set_system_domain` accepts `{project: "id-or-slug", enabled: false}` and returns
+`{systemDomainEnabled:false}`. Both system URLs (production and preview) stop
+serving; custom mappings are unchanged. Use true to re-enable. The setting is also
+returned in project metadata. `remove_domain` removes a custom mapping.

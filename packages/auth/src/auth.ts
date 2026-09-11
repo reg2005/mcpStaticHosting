@@ -24,6 +24,20 @@ export const auth = betterAuth({
   secret: process.env.APP_SECRET,
   baseURL: process.env.AUTH_BASE_URL ?? "http://localhost:3000",
 
+  // Hosted sibling subdomains must not be able to plant a dashboard session cookie.
+  advanced: {
+    cookiePrefix: "mcphosting",
+    ...(process.env.AUTH_BASE_URL?.startsWith("https://") ? { cookies: {
+      session_token: { name: "__Host-mcphosting.session_token", attributes: { secure: true, path: "/" } },
+      session_data: { name: "__Host-mcphosting.session_data", attributes: { secure: true, path: "/" } },
+      account_data: { name: "__Host-mcphosting.account_data", attributes: { secure: true, path: "/" } },
+      dont_remember: { name: "__Host-mcphosting.dont_remember", attributes: { secure: true, path: "/" } },
+    } } : {}),
+    // Names above already carry __Host-. Avoid adding an outer __Secure- prefix.
+    useSecureCookies: false,
+    defaultCookieAttributes: { secure: process.env.AUTH_BASE_URL?.startsWith("https://") ?? false },
+  },
+
   database: drizzleAdapter(getDb(), { provider: "pg" }),
 
   emailAndPassword: {

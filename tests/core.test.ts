@@ -18,8 +18,8 @@ test('config rejects empty and placeholder secrets without exposing values', () 
 test('custom runtime domain maps preview and production separately', () => {
   const parts = { slug: 'hello-world', userShortId: 'abc12345' };
   assert.equal(productionHost(parts, 'sites.example.org'), 'hello-world-abc12345.sites.example.org');
-  assert.equal(previewHost(parts, 'sites.example.org'), 'hello-world-abc12345.preview.sites.example.org');
-  assert.deepEqual(parsemcphostingHost('hello-world-abc12345.preview.sites.example.org:3002', 'sites.example.org'), {...parts, isPreview: true});
+  assert.equal(previewHost(parts, 'sites.example.org'), 'preview--hello-world-abc12345.sites.example.org');
+  assert.deepEqual(parsemcphostingHost('preview--hello-world-abc12345.sites.example.org:3002', 'sites.example.org'), {...parts, isPreview: true});
   assert.equal(parsemcphostingHost('evil.example.org', 'sites.example.org'), null);
 });
 

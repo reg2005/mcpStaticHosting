@@ -1,7 +1,8 @@
 # Operations
 
 For production, replace `docker compose` in the examples below with
-`sh scripts/compose-prod.sh` and back up `.env.production` rather than `.env`.
+`sh scripts/compose-prod.sh` and back up `.env.production` rather than `.env`. Also stop `edge` during production
+backups/upgrades and archive its `edge` volume plus the `secrets/dns.env` file.
 The wrapper selects the standalone production file and its environment.
 
 ## Status and logs
@@ -80,9 +81,28 @@ available through the dashboard/MCP release tools.
   mounts must be writable by UID/GID 1000.
 - **Wrong MCP URL:** change `MCP_PUBLIC_URL` and run `docker compose up -d`.
 - **Auth origin error:** `AUTH_BASE_URL` must exactly match the browser origin.
-- **Sites do not resolve:** check wildcard DNS, including the preview level, and
+- **Sites do not resolve:** check wildcard DNS, both main and wildcard A records, and
   preserve the `Host` header through the proxy.
 - **Functions disabled / 503:** enable both the environment flag and Compose profile.
 - **Database password changed:** restore the original environment or explicitly
   change the database role password; environment edits do not update stored roles.
-- **Port collision:** change the three host port variables and public URLs together.
+- **Production port collision:** free ports 80 and 443 for the bundled edge.
+- **Local port collision:** change the local host port variables and public URLs together.
+
+
+## Production certificate backup
+
+While the edge is stopped, archive its volume without launching another controller:
+
+```sh
+sh scripts/compose-prod.sh stop edge
+sh scripts/compose-prod.sh run --rm --no-deps --entrypoint tar edge -czf - -C /edge . > backups/edge.tar.gz
+cp secrets/dns.env backups/dns.env
+sh scripts/compose-prod.sh up -d --wait
+```
+
+Keep the backup directory private (0700) and files private (0600); archive and encrypt
+these with the database/sites backup. Restore the edge archive into a fresh named
+volume owned by UID/GID 1000. Do not publish ACME account or private key files.
+Provider credential rotation only needs replacing `secrets/dns.env`; lego reads it
+before each issuance. If replacing the inode, recreate edge so the bind mount updates.

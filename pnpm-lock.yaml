@@ -30,6 +30,31 @@ importers:
         specifier: ^5.7.2
         version: 5.7.2
 
+  apps/edge:
+    dependencies:
+      '@mcphosting/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@mcphosting/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.5)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.10.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.19.2
+      typescript:
+        specifier: ^5.7.2
+        version: 5.7.2
+
   apps/functions: {}
 
   apps/mcp:
