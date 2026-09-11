@@ -22,6 +22,7 @@ docker push "reg2005/mcp-static-hosting:$VERSION"
 docker push "reg2005/mcp-static-hosting-functions:$VERSION"
 docker buildx imagetools inspect "reg2005/mcp-static-hosting:$VERSION"
 docker buildx imagetools inspect "reg2005/mcp-static-hosting-functions:$VERSION"
+docker buildx imagetools inspect "reg2005/mcp-static-hosting-edge:$VERSION"
 ```
 
 Never overwrite a released version with different code. Record the registry digests
