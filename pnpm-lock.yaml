@@ -47,8 +47,8 @@ importers:
         specifier: ^1.30.0
         version: 1.30.0(zod@3.25.28)
       dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
+        specifier: ^17.4.2
+        version: 17.4.2
       ioredis:
         specifier: ^5.4.1
         version: 5.4.1
@@ -78,8 +78,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/db
       dotenv:
-        specifier: ^16.4.7
-        version: 16.4.7
+        specifier: ^17.4.2
+        version: 17.4.2
       hono:
         specifier: ^4.13.7
         version: 4.13.7
@@ -1897,8 +1897,8 @@ packages:
     dev: false
     optional: true
 
-  /dotenv@16.4.7:
-    resolution: {integrity: sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ==}
+  /dotenv@17.4.2:
+    resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
     dev: false
 
