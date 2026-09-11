@@ -27,7 +27,7 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -40,7 +40,7 @@ jobs:
             REVISION=${{ github.sha }}
           provenance: mode=max
           sbom: true
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: ./apps/functions
           platforms: linux/amd64,linux/arm64
