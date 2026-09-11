@@ -18,8 +18,8 @@ importers:
         specifier: 2.4.6
         version: 2.4.6
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -57,8 +57,8 @@ importers:
         version: 3.25.28
     devDependencies:
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -91,8 +91,8 @@ importers:
         specifier: ^2.1.4
         version: 2.1.4
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       tsx:
         specifier: ^4.19.2
         version: 4.19.2
@@ -125,7 +125,7 @@ importers:
         version: 0.52.2
       next:
         specifier: ^15.5.25
-        version: 15.5.25(@types/node@22.10.2)(react-dom@19.2.7)(react@19.2.7)
+        version: 15.5.25(@types/node@26.5.0)(react-dom@19.2.7)(react@19.2.7)
       react:
         specifier: ^19.2.7
         version: 19.2.7
@@ -134,8 +134,8 @@ importers:
         version: 19.2.7(react@19.2.7)
     devDependencies:
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       '@types/react':
         specifier: ^19.0.2
         version: 19.0.2
@@ -165,8 +165,8 @@ importers:
         version: 0.45.2(kysely@0.29.5)
     devDependencies:
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -187,8 +187,8 @@ importers:
         version: 3.36.0
     devDependencies:
       '@types/node':
-        specifier: ^22.10.2
-        version: 22.10.2
+        specifier: ^26.5.0
+        version: 26.5.0
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -1531,10 +1531,10 @@ packages:
     resolution: {integrity: sha512-lfU4b34HOri+kAY5UheuFMWPDOI+OPceBSHZKp69gEyTL/mmJ4cnU6Y/rlme3UL3GyOn6Y42hyIEw0/q8sWx5w==}
     dev: true
 
-  /@types/node@22.10.2:
-    resolution: {integrity: sha512-Xxr6BBRCAOQixvonOye19wnzyDiUtTeqldOOmj3CkeblonbccA12PFwlufvRdrpjXxqnmUaeiU5EOA+7s5diUQ==}
+  /@types/node@26.5.0:
+    resolution: {integrity: sha512-dVSGpriSoCgz8WnDNTuSSuSv1PC/ALXihO4ulRZt7Md8k9mlbdin3lGOcDE8SnWOgf513ByWlXd7BK4azmyg/A==}
     dependencies:
-      undici-types: 6.20.0
+      undici-types: 8.9.0
 
   /@types/react-dom@19.0.2(@types/react@19.0.2):
     resolution: {integrity: sha512-c1s+7TKFaDRRxr1TxccIX2u7sfCnc3RxkVyBIUA2lCpyqCF+QoAwQ/CBg7bsMdVwP120HEH143VQezKtef5nCg==}
@@ -1741,7 +1741,7 @@ packages:
       jose: 6.2.12
       kysely: 0.29.5
       nanostores: 1.5.3
-      next: 15.5.25(@types/node@22.10.2)(react-dom@19.2.7)(react@19.2.7)
+      next: 15.5.25(@types/node@26.5.0)(react-dom@19.2.7)(react@19.2.7)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
       zod: 4.6.2
@@ -2561,7 +2561,7 @@ packages:
       content-type: 2.1.0
     dev: false
 
-  /next@15.5.25(@types/node@22.10.2)(react-dom@19.2.7)(react@19.2.7):
+  /next@15.5.25(@types/node@26.5.0)(react-dom@19.2.7)(react@19.2.7):
     resolution: {integrity: sha512-OMWNulIIqKM2ykvC2qMjIt0IoavB4UB2SCs4iXJ6z6847FvyH8jBmBWcvrF5iuhTu8Przh20Fo/aoszIdqx4PA==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
@@ -2598,7 +2598,7 @@ packages:
       '@next/swc-linux-x64-musl': 15.5.25
       '@next/swc-win32-arm64-msvc': 15.5.25
       '@next/swc-win32-x64-msvc': 15.5.25
-      sharp: 0.35.4(@types/node@22.10.2)
+      sharp: 0.35.4(@types/node@26.5.0)
     transitivePeerDependencies:
       - '@babel/core'
       - '@types/node'
@@ -2802,7 +2802,7 @@ packages:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
     dev: false
 
-  /sharp@0.35.4(@types/node@22.10.2):
+  /sharp@0.35.4(@types/node@26.5.0):
     resolution: {integrity: sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==}
     engines: {node: '>=20.9.0'}
     requiresBuild: true
@@ -2813,7 +2813,7 @@ packages:
         optional: true
     dependencies:
       '@img/colour': 1.1.0
-      '@types/node': 22.10.2
+      '@types/node': 26.5.0
       detect-libc: 2.1.2
       semver: 7.8.5
     optionalDependencies:
@@ -3051,8 +3051,8 @@ packages:
     hasBin: true
     dev: true
 
-  /undici-types@6.20.0:
-    resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
+  /undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   /unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
