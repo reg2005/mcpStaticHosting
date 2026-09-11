@@ -65,3 +65,12 @@ Other domain rules are `INVALID_DOMAIN`, `DOMAIN_TAKEN` and `DOMAIN_LIMIT`.
 `{systemDomainEnabled:false}`. Both system URLs (production and preview) stop
 serving; custom mappings are unchanged. Use true to re-enable. The setting is also
 returned in project metadata. `remove_domain` removes a custom mapping.
+
+## Path-hosted installations
+
+Project URLs may contain `/sites/slug-userId/` or `/preview/slug-userId/`. Preserve
+the returned pathname and trailing slash, use relative asset URLs, or set the
+framework build base to that pathname. Custom domains still serve from `/`.
+`set_system_domain` enables/disables the two system paths in this mode. The main
+MCP endpoint remains `https://MAIN_DOMAIN/mcp`. Path pages use an opaque-origin
+browser sandbox; attach a custom domain for storage/service-worker apps.

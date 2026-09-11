@@ -1,3 +1,4 @@
+import { parseSystemPath, systemPath, type RoutingMode } from "./site-routing.js";
 import { DomainError, validateCustomDomain } from "./domain-policy.js";
 import { randomUUID } from "node:crypto";
 import { and, count, desc, eq, max } from "drizzle-orm";
@@ -22,6 +23,7 @@ export const MAX_CUSTOM_DOMAINS_PER_USER = 40;
 export interface ProjectServiceConfig {
   baseDomain: string;
   mainDomain?: string;
+  routingMode?: RoutingMode;
   repoRoot: string;
   snapshotRoot: string;
   dataRoot?: string;
@@ -37,6 +39,9 @@ export interface ProjectUrls {
 }
 
 export interface ResolvedSite {
+  basePath?: string;
+  sitePath?: string;
+  needsSlash?: boolean;
   projectId: string;
   dir: string;
   isPreview: boolean;
@@ -94,6 +99,10 @@ export class ProjectService {
     const parts = { slug, userShortId };
     const scheme = this.config.siteScheme ?? "https";
     const port = this.config.sitePort ? `:${this.config.sitePort}` : "";
+    if (this.config.routingMode === "path") {
+      const origin = `${scheme}://${this.config.mainDomain ?? this.config.baseDomain}${port}`;
+      return { productionUrl: origin + systemPath(parts), previewUrl: origin + systemPath(parts, true) };
+    }
     return {
       productionUrl: `${scheme}://${productionHost(parts, this.config.baseDomain)}${port}`,
       previewUrl: `${scheme}://${previewHost(parts, this.config.baseDomain)}${port}`,
@@ -130,7 +139,7 @@ export class ProjectService {
     await this.db.insert(domains).values([
       {
         projectId: project.id,
-        hostname: new URL(urls.productionUrl).hostname,
+        hostname: productionHost({ slug, userShortId: owner.shortId }, this.config.baseDomain),
         type: "subdomain",
         isPreview: false,
         verified: true,
@@ -138,7 +147,7 @@ export class ProjectService {
       },
       {
         projectId: project.id,
-        hostname: new URL(urls.previewUrl).hostname,
+        hostname: previewHost({ slug, userShortId: owner.shortId }, this.config.baseDomain),
         type: "subdomain",
         isPreview: true,
         verified: true,
@@ -419,13 +428,20 @@ export class ProjectService {
    * Resolve an incoming site request (used by the router). Handles both mcphosting
    * subdomains and verified custom domains via the domains table.
    */
-  async resolveSite(hostname: string): Promise<ResolvedSite | null> {
-    const host = hostname.toLowerCase().split(":")[0] ?? "";
+  async resolveSite(hostname: string, pathname = "/"): Promise<ResolvedSite | null> {
+    let host = hostname.toLowerCase().split(":")[0] ?? "";
+    let mount: ReturnType<typeof parseSystemPath> = null;
+    if (this.config.routingMode === "path" && host === (this.config.mainDomain ?? this.config.baseDomain)) {
+      mount = parseSystemPath(pathname);
+      if (!mount) return null;
+      host = `${mount.isPreview ? "preview--" : ""}${mount.label}.${this.config.baseDomain}`;
+    }
     const [domain] = await this.db
       .select()
       .from(domains)
       .where(eq(domains.hostname, host))
       .limit(1);
+    if (domain?.type === "subdomain" && this.config.routingMode === "path" && !mount) return null;
     if (!domain || !domain.verified || (domain.type === "custom" && domain.tls !== "active")) return null;
 
     const [project] = await this.db
@@ -436,9 +452,11 @@ export class ProjectService {
     if (!project || (domain.type === "subdomain" && !project.systemDomainEnabled)) return null;
 
     const passwordHash = project.passwordHash ?? null;
+    const routing = mount ? { basePath: mount.basePath, sitePath: mount.sitePath, needsSlash: mount.needsSlash } : {};
 
     if (domain.isPreview) {
       return {
+        ...routing,
         projectId: project.id,
         dir: this.git.previewDir(project.id),
         isPreview: true,
@@ -448,7 +466,7 @@ export class ProjectService {
     }
 
     if (!project.productionReleaseId) {
-      return { projectId: project.id, dir: "", isPreview: false, unpublished: true, passwordHash };
+      return { ...routing, projectId: project.id, dir: "", isPreview: false, unpublished: true, passwordHash };
     }
     const [release] = await this.db
       .select()
@@ -456,9 +474,10 @@ export class ProjectService {
       .where(eq(releases.id, project.productionReleaseId))
       .limit(1);
     if (!release)
-      return { projectId: project.id, dir: "", isPreview: false, unpublished: true, passwordHash };
+      return { ...routing, projectId: project.id, dir: "", isPreview: false, unpublished: true, passwordHash };
 
     return {
+      ...routing,
       projectId: project.id,
       dir: this.git.snapshotDir(project.id, release.version),
       isPreview: false,

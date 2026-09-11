@@ -1,3 +1,4 @@
+import { readRoutingMode } from "@mcphosting/core";
 import "dotenv/config";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -11,6 +12,7 @@ const PORT = Number(process.env.MCP_PORT ?? 3001);
 
 const service = new ProjectService(getDb(), {
   mainDomain: process.env.MAIN_DOMAIN,
+      routingMode: readRoutingMode(process.env.SITE_ROUTING_MODE),
       baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
   repoRoot: process.env.REPO_ROOT ?? "./data/repos",
   snapshotRoot: process.env.SNAPSHOT_ROOT ?? "./data/snapshots",

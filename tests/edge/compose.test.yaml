@@ -34,7 +34,7 @@ services:
       default:
         aliases: [localhost]
   runner:
-    image: reg2005/mcp-static-hosting:0.2.0
+    image: reg2005/mcp-static-hosting:0.3.0
     profiles: [test]
     entrypoint: [node, /fixtures/smoke.mjs]
     volumes: ['./tests/edge:/fixtures:ro']

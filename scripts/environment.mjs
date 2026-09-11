@@ -1,4 +1,5 @@
 export function validateEnvironment(env) {
+  if (env.SITE_ROUTING_MODE && !["subdomain", "path"].includes(env.SITE_ROUTING_MODE)) throw new Error("SITE_ROUTING_MODE must be subdomain or path");
   if (!env.APP_SECRET || env.APP_SECRET.length < 32 || /change.?me|placeholder/i.test(env.APP_SECRET)) {
     throw new Error('APP_SECRET must contain at least 32 random characters. Run scripts/setup.sh.');
   }

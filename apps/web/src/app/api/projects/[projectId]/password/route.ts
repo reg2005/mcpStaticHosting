@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 function previewSrc(previewUrl: string, projectId: string, locked: boolean): string {
   if (!locked) return previewUrl;
   const token = previewBypassToken(projectId);
-  return `${previewUrl}/__mcphosting/preview-access?token=${encodeURIComponent(token)}&next=/`;
+  return `${previewUrl.replace(/\/$/, "")}/__mcphosting/preview-access?token=${encodeURIComponent(token)}&next=/`;
 }
 
 /** Set or change the site password. */

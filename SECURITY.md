@@ -33,3 +33,14 @@ rendered Compose configuration, session cookies or API keys in an issue.
 
 Keep `APP_SECRET` and database/site backups together in encrypted, access-controlled
 storage. See [operations](docs/operations.md) for backup and upgrade procedures.
+
+## Shared-host path mode
+
+Path-hosted documents enforce an opaque-origin CSP sandbox. Do not remove it or add
+`allow-same-origin`: arbitrary project HTML would then share the dashboard origin.
+The proxy drops management credentials on `/sites/` and `/preview/`; browser API
+mutations from `Origin: null` are rejected. Project password cookies have per-path
+scope. Function responses cannot override CSP or emit cookies on path sites.
+Full browser storage/credentialed-fetch/service-worker applications should use a custom
+domain. This is a single-host trusted-author service; optional Deno execution is
+not an isolation boundary for hostile code.

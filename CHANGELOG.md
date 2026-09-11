@@ -5,6 +5,23 @@ and Semantic Versioning.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-11
+
+### Added
+- Optional path hosting on one domain with HTTP-01 for the main certificate; no DNS API credentials or wildcard DNS required.
+- Production and preview paths, project-scoped password cookies and path-aware preview bypass/redirects.
+- Opaque-origin browser sandbox for path sites; management credentials are removed before forwarding to hosted content.
+- Documentation of relative asset/build paths and custom domains for full browser-origin capabilities.
+
+### Fixed
+- Access logging tolerates a socket already closed when a response finishes.
+- Password-protected site responses are marked private and not cached.
+
+### Changed
+- DNS provider settings are required only in the default subdomain mode. Blank DNS_CREDENTIALS_PATH mounts an empty file.
+- Custom domain automation and the system-address toggle work in both modes; no database migration is required.
+
+
 ## [0.2.0] - 2026-09-11
 
 ### Added

@@ -4,7 +4,74 @@ Production uses **Nginx + lego**, included in the published `mcp-static-hosting-
 image. No host proxy, Docker socket, GitHub Actions or server-side build is needed.
 All application images target Linux x86-64. Only TCP ports **80 and 443** are public.
 
-## First installation
+## Path hosting without a DNS API
+
+For a single domain with projects in paths, run setup and select:
+
+```sh
+sh scripts/setup.sh --production
+```
+
+```dotenv
+SITE_ROUTING_MODE=path
+MAIN_DOMAIN=example.com
+ACME_EMAIL=admin@example.com
+DNS_PROVIDER=
+DNS_CREDENTIALS_PATH=
+SIGNUPS_ENABLED=true
+```
+
+Create an A record for `example.com` pointing to the server and open inbound TCP
+80/443. Start with `sh scripts/compose-prod.sh up -d --wait`. Nginx opens the HTTP-01
+challenge endpoint before requesting the main certificate. No DNS API, wildcard
+record or provider credentials file is needed. `MAIN_HTTP_ACME_READY` means the
+certificate is ready; failures retry automatically with backoff. `MAIN_DOMAIN`
+still names the one public host; path mode does not mean a domain-free installation.
+
+Dashboard and MCP keep their existing URLs. Published sites use
+`https://example.com/sites/slug-userId/`; previews use
+`https://example.com/preview/slug-userId/`. Missing trailing slashes redirect to the
+canonical URL. Paths resolve to the same drafts/releases as subdomain mode and need
+no database migration. The system-address switch disables both paths. Custom domains
+retain the same DNS/HTTP-01 lifecycle and serve the site from `/`.
+
+Management CIDRs protect dashboard/authentication/API/MCP while `/sites/` and
+`/preview/` stay publicly reachable. Nginx removes management cookies and Authorization
+before forwarding path-site requests, retaining only the project password cookie.
+Password cookies are scoped to the specific production/preview path; the owner
+preview bypass and password-form redirects preserve that path.
+
+### Site content and browser isolation
+
+Build sites for their returned URL pathname. Relative links such as `assets/style.css`
+and `about` work; root-absolute `/assets/...` targets the instance root. The server
+does not rewrite HTML/CSS/JavaScript or infer a base path for third-party bundles.
+Configure a framework's base/public path when building it. Relative assets also
+work on an attached custom domain without modification.
+
+Because user HTML shares the management host, path responses enforce CSP
+`sandbox allow-scripts allow-forms allow-popups allow-downloads`, without
+`allow-same-origin`. This permits scripts and ordinary forms but prevents project
+scripts from reading the dashboard, its cookies/storage, or registering service workers.
+Public path resources send `Access-Control-Allow-Origin: *`, allowing anonymous
+fetch and ES modules from the opaque origin. Credentialed fetch is not allowed;
+localStorage and cookie APIs are unavailable. Password-protected module/fetch apps
+need a custom domain. Main API mutations from that opaque origin are rejected.
+Path pages can be embedded by the same-origin dashboard only. For a full web app
+requiring storage, credentialed fetch, service workers or external
+embedding, attach a custom domain; it has its own origin and no path sandbox.
+
+Custom function responses in path mode cannot set cookies, loosen CSP or expand
+service-worker scope. Functions remain an optional trusted-author feature. There
+is no switch to disable the shared-origin sandbox.
+
+To switch modes, keep `MAIN_DOMAIN` and volumes unchanged, update
+`SITE_ROUTING_MODE`, and recreate services with `up -d`. Switching to subdomain mode
+also requires wildcard A DNS and provider credentials. System URLs change and old
+system URLs stop serving; custom domains, projects and releases remain. Configure
+your site build paths for the new URLs. The default is still `subdomain`.
+
+## First installation with wildcard subdomains
 
 1. Choose `MAIN_DOMAIN`, for example `example.com`. Create DNS **A** records for
    `example.com` and `*.example.com` pointing to the server's reachable IPv4.

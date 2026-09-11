@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 function previewSrcFor(previewUrl: string, projectId: string, locked: boolean): string {
   if (!locked) return previewUrl;
   const token = previewBypassToken(projectId);
-  return `${previewUrl}/__mcphosting/preview-access?token=${encodeURIComponent(token)}&next=/`;
+  return `${previewUrl.replace(/\/$/, "")}/__mcphosting/preview-access?token=${encodeURIComponent(token)}&next=/`;
 }
 
 export default async function EditorPage({

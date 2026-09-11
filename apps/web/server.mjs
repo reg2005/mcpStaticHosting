@@ -17,7 +17,7 @@ function firstHeaderValue(value) {
 function forwardedIp(req) {
   const forwardedFor = firstHeaderValue(req.headers["x-forwarded-for"]);
   if (forwardedFor) return forwardedFor.split(",")[0].trim();
-  return firstHeaderValue(req.headers["x-real-ip"]) || req.socket.remoteAddress || "";
+  return firstHeaderValue(req.headers["x-real-ip"]) || req.socket?.remoteAddress || "";
 }
 
 function requestPath(req) {
@@ -35,7 +35,7 @@ function accessLog(req, res, startedAt) {
     method: req.method || "",
     path: requestPath(req),
     host: firstHeaderValue(req.headers.host),
-    ip: req.socket.remoteAddress || "",
+    ip: req.socket?.remoteAddress || "",
     forwardedIp: forwardedIp(req),
     userAgent: firstHeaderValue(req.headers["user-agent"]),
     status: res.statusCode,

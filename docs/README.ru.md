@@ -27,8 +27,8 @@ docker compose up -d --wait
 ## Продакшен и свой домен
 
 В репозитории есть отдельный [compose.prod.yaml](../compose.prod.yaml) с образами
-`reg2005/mcp-static-hosting:0.2.0` и `reg2005/mcp-static-hosting-functions:0.2.0`
-и `reg2005/mcp-static-hosting-edge:0.2.0`
+`reg2005/mcp-static-hosting:0.3.0` и `reg2005/mcp-static-hosting-functions:0.3.0`
+и `reg2005/mcp-static-hosting-edge:0.3.0`
 для `linux/amd64` (x86-64). Включены Nginx и контроллер сертификатов. Сборка на сервере не требуется.
 
 ```sh
@@ -48,7 +48,7 @@ OVH, Hetzner и Selectel v2 приведены прямо в [README](../README.
 Панель находится на `https://example.com`, MCP — `https://example.com/mcp`.
 Открыты только порты 80/443. Сертификаты продлеваются автоматически.
 
-`MANAGEMENT_ALLOWED_CIDRS=192.0.2.0/24,2001:db8::/32` ограничивает доступ к панели,
+`MANAGEMENT_ALLOWED_CIDRS=192.0.3.0/24,2001:db8::/32` ограничивает доступ к панели,
 авторизации и MCP. Укажите свои подсети. Пустое значение разрешает любой IP.
 Это не отключает парольную авторизацию и не открывает регистрацию автоматически.
 На посетителей сайтов ограничение не распространяется.
@@ -87,3 +87,21 @@ DNS проверяется примерно раз в минуту. Когда �
 - [Резервные копии, обновления и откат](operations.md)
 - [Безопасность](../SECURITY.md)
 - [Разработка](../CONTRIBUTING.md)
+
+## Один домен без DNS API
+
+В `.env.production` укажите `SITE_ROUTING_MODE=path`, `MAIN_DOMAIN=example.com`
+и `ACME_EMAIL`. Оставьте `DNS_PROVIDER` и `DNS_CREDENTIALS_PATH` пустыми. Нужна только
+A-запись основного домена на сервер и открытые порты 80/443. Сертификат основного
+домена выпускается через HTTP-01; DNS-ключи и wildcard-запись не нужны.
+
+Проекты: `https://example.com/sites/hello-abc12345/`, предпросмотр:
+`https://example.com/preview/hello-abc12345/`. Кастомные домены работают от `/`,
+проверяются и получают сертификаты автоматически. Выключатель системного адреса
+отключает оба пути проекта, сохраняя кастомные домены.
+
+Используйте относительные ссылки на файлы или задайте base path при сборке сайта.
+Ссылки `/assets/...` автоматически не переписываются. Страницы в путях изолированы
+от панели браузерным sandbox: JavaScript работает, но cookies, localStorage,
+service workers и запросы, требующие общего origin, ограничены. Для таких приложений
+подключите кастомный домен. [Подробнее](deployment.md#path-hosting-without-a-dns-api).

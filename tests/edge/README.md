@@ -6,7 +6,7 @@ fetches HTTP-01 from Nginx. A local DNS/provider fixture accepts lego's `httpreq
 present/cleanup calls and serves A/AAAA/TXT/SOA/NS responses. No public CA, real
 provider credential, public domain, or privileged host port is involved.
 
-Build the three 0.2.0 images locally first. Run from the repository root with Compose
+Build the three 0.3.0 images locally first. Run from the repository root with Compose
 2.24.4+ (`!override` support). Choose a disposable directory; the setup script creates
 random test credentials and downloads the public Pebble test CA/config from v2.8.0:
 
@@ -55,3 +55,29 @@ Run on a clean test database. The fixed private subnet 10.77.42.0/24 must be unu
 Provider API semantics are covered by upstream lego; live calls to all six providers
 are not performed here. Ordinary unit tests additionally cover malformed IP/CIDR
 input, reserved/IDN domains, retry deadlines, renewal failures and mixed A/AAAA answers.
+
+## Single-domain path mode
+
+Use a fresh setup directory and set `SITE_ROUTING_MODE=path`, `DNS_PROVIDER=` and
+`DNS_CREDENTIALS_PATH=` in its test.env. Start the same disposable Compose fixture.
+Run `runner /fixtures/path.mjs` using `--entrypoint node`, then `mcp.mjs`; both main
+and custom certificates must use real HTTP-01. The test prints BROWSER_PATH and
+BROWSER_LOCKED_PATH for its disposable public and password-protected sites.
+
+For a browser check, temporarily expose edge 8443 as `127.0.0.1:28443` through a
+test-only Compose override. Install/use Playwright 1.58.2 with Chromium and run:
+
+```sh
+BROWSER_PATH=/sites/<printed-public-path>/ \
+BROWSER_LOCKED_PATH=/sites/<printed-password-path>/ \
+pnpm --package=playwright@1.58.2 dlx node tests/edge/path-browser.cjs
+```
+
+The test pins only example.test to loopback in its own Chromium process, accepts
+the disposable Pebble certificate, and verifies CSS, scripts, ES modules, anonymous
+fetch, relative navigation, password cookies, and management/storage/service-worker
+isolation. No system hosts file or real domain is modified. For the ACL test also
+pass `ACL_PUBLIC_PATH` to the runner, using the printed public project path.
+
+Run the existing wildcard smoke fixture against a separate clean default-mode
+stack to cover the other mode. Remove only the disposable test stack with `down -v`.

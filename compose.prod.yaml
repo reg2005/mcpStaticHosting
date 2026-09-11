@@ -9,6 +9,7 @@ x-env: &env
   DATABASE_URL: postgres://mcphosting:${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}@postgres:5432/mcphosting
   REDIS_URL: redis://redis:6379
   APP_SECRET: ${APP_SECRET:?Run sh scripts/setup.sh}
+  SITE_ROUTING_MODE: ${SITE_ROUTING_MODE:-subdomain}
   MAIN_DOMAIN: ${MAIN_DOMAIN:?Set MAIN_DOMAIN}
   AUTH_BASE_URL: https://${MAIN_DOMAIN:?Set MAIN_DOMAIN}
   MCP_PUBLIC_URL: https://${MAIN_DOMAIN:?Set MAIN_DOMAIN}/mcp
@@ -27,7 +28,7 @@ x-env: &env
 
 x-app: &app
   platform: linux/amd64
-  image: reg2005/mcp-static-hosting:${IMAGE_TAG:-0.2.0}
+  image: reg2005/mcp-static-hosting:${IMAGE_TAG:-0.3.0}
   environment: *env
   restart: unless-stopped
   init: true
@@ -51,7 +52,7 @@ x-health: &health
 services:
   edge:
     platform: linux/amd64
-    image: reg2005/mcp-static-hosting-edge:${IMAGE_TAG:-0.2.0}
+    image: reg2005/mcp-static-hosting-edge:${IMAGE_TAG:-0.3.0}
     restart: unless-stopped
     init: true
     cap_drop: [ALL]
@@ -61,10 +62,11 @@ services:
     ports: ['80:8080', '443:8443']
     environment:
       DATABASE_URL: postgres://mcphosting:${POSTGRES_PASSWORD:?Run sh scripts/setup.sh}@postgres:5432/mcphosting
+      SITE_ROUTING_MODE: ${SITE_ROUTING_MODE:-subdomain}
       MAIN_DOMAIN: ${MAIN_DOMAIN:?Set MAIN_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
       ACME_SERVER: ${ACME_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
-      DNS_PROVIDER: ${DNS_PROVIDER:?Set DNS_PROVIDER}
+      DNS_PROVIDER: ${DNS_PROVIDER:-}
       DNS_CREDENTIALS_FILE: /run/secrets/dns_credentials
       PUBLIC_IPV4: ${PUBLIC_IPV4:-}
       PUBLIC_IPV6: ${PUBLIC_IPV6:-}
@@ -134,7 +136,7 @@ services:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
   functions:
     platform: linux/amd64
-    image: reg2005/mcp-static-hosting-functions:${IMAGE_TAG:-0.2.0}
+    image: reg2005/mcp-static-hosting-functions:${IMAGE_TAG:-0.3.0}
     profiles: [functions]
     user: '1000:1000'
     init: true
@@ -158,7 +160,7 @@ services:
       test: [CMD, deno, eval, "const r=await fetch('http://127.0.0.1:3003/healthz');Deno.exit(r.ok?0:1)"]
 secrets:
   dns_credentials:
-    file: ${DNS_CREDENTIALS_PATH:-./secrets/dns.env}
+    file: ${DNS_CREDENTIALS_PATH:-/dev/null}
 
 volumes:
   edge:

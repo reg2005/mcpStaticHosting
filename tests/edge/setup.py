@@ -6,8 +6,8 @@ for name,url in [('pebble.minica.pem','https://raw.githubusercontent.com/letsenc
  (p/name).write_bytes(urllib.request.urlopen(url).read())
 c=json.loads((p/'pebble.json').read_text());c['pebble']['httpPort']=8080;c['pebble']['profiles']['default']['validityPeriod']=7776000;(p/'pebble.json').write_text(json.dumps(c))
 (p/'dns.env').write_text('HTTPREQ_ENDPOINT=http://dns-provider:8055\n');(p/'dns.env').chmod(0o644)
-(p/'test.env').write_text(f'''COMPOSE_PROJECT_NAME=mcph-edge-020-test
-IMAGE_TAG=0.2.0
+(p/'test.env').write_text(f'''COMPOSE_PROJECT_NAME=mcph-edge-030-test
+IMAGE_TAG=0.3.0
 MAIN_DOMAIN=example.test
 ACME_EMAIL=test@example.test
 ACME_SERVER=https://pebble:14000/dir

@@ -7,7 +7,7 @@ version references and the Compose image tag together.
 
 ```sh
 docker login
-VERSION=0.2.0
+VERSION=0.3.0
 REVISION=$(git rev-parse HEAD)
 docker build --platform linux/amd64 \
   --build-arg VERSION="$VERSION" --build-arg REVISION="$REVISION" \

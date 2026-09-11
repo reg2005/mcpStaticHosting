@@ -41,7 +41,7 @@ export function DomainPanel({ projectId, productionUrl, onSystemChange }: { proj
   return <section aria-label="Домены" style={{ padding: 12, fontSize: 12, borderTop: "1px solid var(--border)", overflowWrap: "anywhere" }}>
     <h3 style={{ margin: "0 0 10px" }}>Домены и HTTPS</h3>
     {loading ? <p>Загрузка…</p> : <>
-      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => void change("PATCH", { systemDomainEnabled: e.target.checked })} />Системный домен</label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}><input type="checkbox" checked={enabled} disabled={busy} onChange={(e) => void change("PATCH", { systemDomainEnabled: e.target.checked })} />Системный адрес</label>
       <p>{productionUrl}</p>
       <p style={{ color: "var(--muted)" }}>{enabled ? "Адрес сайта и preview включены." : "Адрес сайта и preview выключены. Собственные домены продолжают работать."}</p>
       <form onSubmit={(e) => { e.preventDefault(); void change("POST", { hostname }); }}>

@@ -24,7 +24,8 @@ export function legoArgs(config: EdgeConfig, host: string, wildcard: boolean, re
     args.push("--domains", `*.${host}`, "--dns", config.provider);
     for (const resolver of config.resolvers) args.push("--dns.resolvers", `${resolver.includes(":") ? `[${resolver}]` : resolver}:53`);
   } else args.push("--http", "--http.webroot", "/edge/challenges");
-  args.push("--renew-days", "30", "--no-random-sleep");
+  // Switching from a single-host certificate to wildcard must update its SANs now.
+  args.push("--force-cert-domains", "--renew-days", "30", "--no-random-sleep");
   return args;
 }
 

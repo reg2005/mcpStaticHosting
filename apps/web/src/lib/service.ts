@@ -1,3 +1,4 @@
+import { readRoutingMode } from "@mcphosting/core";
 import "server-only";
 import { ProjectService } from "@mcphosting/core";
 import { getDb } from "@mcphosting/db";
@@ -11,6 +12,7 @@ export function getService(): ProjectService {
   if (!globalThis.__mcphostingService || !("data" in globalThis.__mcphostingService)) {
     globalThis.__mcphostingService = new ProjectService(getDb(), {
       mainDomain: process.env.MAIN_DOMAIN,
+      routingMode: readRoutingMode(process.env.SITE_ROUTING_MODE),
       baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
       repoRoot: process.env.REPO_ROOT ?? "./data/repos",
       snapshotRoot: process.env.SNAPSHOT_ROOT ?? "./data/snapshots",

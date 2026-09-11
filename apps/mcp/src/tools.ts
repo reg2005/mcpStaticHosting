@@ -49,7 +49,7 @@ export function buildServer(service: ProjectService, user: User): McpServer {
 
   server.tool(
     "create_project",
-    "Create a new site. Returns its id plus production and preview URLs.",
+    "Create a new site. Returns its id plus production and preview URLs. URLs may include a mount path: use relative assets/links or configure your build base from the returned URL pathname; do not assume the site is at /.",
     { name: z.string().optional().describe("Optional site name; random if omitted") },
     async ({ name }) => {
       const { project, productionUrl, previewUrl } = await service.createProject(user.id, name);

@@ -1,9 +1,12 @@
+import { readRoutingMode } from "@mcphosting/core";
 import "dotenv/config";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { serve } from "@hono/node-server";
 import {
   type FunctionRoute,
+  PATH_SITE_CSP,
+  inSiteRedirect,
   ProjectService,
   type ResolvedSite,
   matchRoute,
@@ -32,6 +35,7 @@ const FUNCTIONS_URL = process.env.FUNCTIONS_URL ?? "http://localhost:3003";
 
 const service = new ProjectService(getDb(), {
   mainDomain: process.env.MAIN_DOMAIN,
+      routingMode: readRoutingMode(process.env.SITE_ROUTING_MODE),
       baseDomain: process.env.PUBLIC_BASE_DOMAIN ?? process.env.BASE_DOMAIN ?? "lvh.me",
   repoRoot: process.env.REPO_ROOT ?? "./data/repos",
   snapshotRoot: process.env.SNAPSHOT_ROOT ?? "./data/snapshots",
@@ -125,6 +129,7 @@ async function invokeFunction(
 
   const out = new Headers();
   resp.headers.forEach((v, k) => {
+    if (site.basePath && ["set-cookie", "content-security-policy", "service-worker-allowed"].includes(k.toLowerCase())) return;
     if (!HOP_BY_HOP.has(k.toLowerCase())) out.set(k, v);
   });
   out.set("cache-control", "no-store");
@@ -153,8 +158,8 @@ function escapeHtml(s: string): string {
 }
 
 /** Render the password gate. `error` shows after a wrong attempt. */
-function gatePage(c: Context, opts: { error?: boolean } = {}) {
-  const next = escapeHtml(c.req.path || "/");
+function gatePage(c: Context, site: ResolvedSite, opts: { error?: boolean } = {}) {
+  const next = escapeHtml(site.sitePath ?? c.req.path ?? "/");
   const error = opts.error
     ? `<p style="color:#f87171;font-size:13px;margin:0 0 12px">Wrong password. Try again.</p>`
     : "";
@@ -162,7 +167,7 @@ function gatePage(c: Context, opts: { error?: boolean } = {}) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Password required</title></head>
 <body style="margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#0b0d10;color:#e6e8eb">
-<form method="POST" action="${UNLOCK_PATH}" style="width:300px;background:#13171c;border:1px solid #1f242b;border-radius:12px;padding:24px">
+<form method="POST" action="${site.basePath ?? "/"}${UNLOCK_PATH.slice(1)}" style="width:300px;background:#13171c;border:1px solid #1f242b;border-radius:12px;padding:24px">
 <h1 style="font-size:17px;margin:0 0 4px">🔒 This site is protected</h1>
 <p style="font-size:13px;color:#9aa3ad;margin:0 0 16px">Enter the password to view it.</p>
 ${error}
@@ -180,27 +185,23 @@ function grantAccess(c: Context, site: ResolvedSite) {
   const secure = (c.req.header("x-forwarded-proto") ?? "").includes("https");
   setCookie(c, ACCESS_COOKIE, siteAccessToken(site.projectId, site.passwordHash), {
     httpOnly: true,
-    sameSite: "Lax",
-    path: "/",
+    // Opaque-origin documents need the scoped cookie on CSS/image subrequests.
+    sameSite: site.basePath && secure ? "None" : "Lax",
+    path: site.basePath ?? "/",
     secure,
     maxAge: 60 * 60 * 24 * 30,
   });
 }
 
-/** A safe in-site redirect target taken from untrusted input. */
-function safeNext(next: string): string {
-  return next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") && !next.startsWith("/__mcphosting/") ? next : "/";
-}
-
 /** Verify a submitted password and, on success, set the access cookie. */
 async function handleUnlock(c: Context, site: ResolvedSite) {
-  if (!site.passwordHash) return c.redirect("/", 303);
+  if (!site.passwordHash) return c.redirect(site.basePath ?? "/", 303);
   const form = await c.req.formData();
   const password = String(form.get("password") ?? "");
-  const dest = safeNext(String(form.get("next") ?? "/"));
+  const dest = inSiteRedirect(String(form.get("next") ?? "/"), site.basePath);
 
   if (!verifyPassword(password, site.passwordHash)) {
-    return gatePage(c, { error: true });
+    return gatePage(c, site, { error: true });
   }
 
   grantAccess(c, site);
@@ -213,34 +214,56 @@ async function handleUnlock(c: Context, site: ResolvedSite) {
  * the password even with a leaked token.
  */
 function handlePreviewAccess(c: Context, site: ResolvedSite) {
-  const dest = safeNext(c.req.query("next") ?? "/");
+  const dest = inSiteRedirect(c.req.query("next") ?? "/", site.basePath);
   if (!site.passwordHash) return c.redirect(dest, 303);
 
   const token = c.req.query("token") ?? "";
   if (!site.isPreview || !verifyPreviewBypass(site.projectId, token)) {
-    return gatePage(c);
+    return gatePage(c, site);
   }
 
   grantAccess(c, site);
   return c.redirect(dest, 303);
 }
 
+app.use("*", async (c, next) => {
+  await next();
+  const host = (c.req.header("host") ?? "").split(":")[0];
+  if (process.env.SITE_ROUTING_MODE === "path" && host === (process.env.MAIN_DOMAIN ?? process.env.PUBLIC_BASE_DOMAIN)) {
+    c.header("Content-Security-Policy", PATH_SITE_CSP);
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("Referrer-Policy", "no-referrer");
+    // Opaque-origin scripts may load public assets/modules, never credentialed responses.
+    c.header("Access-Control-Allow-Origin", "*");
+    c.res.headers.delete("access-control-allow-credentials");
+    c.res.headers.delete("service-worker-allowed");
+  }
+});
+
 app.all("*", async (c) => {
   const host = c.req.header("host") ?? "";
-  const site = await service.resolveSite(host);
+  const site = await service.resolveSite(host, c.req.path);
 
   if (!site) return c.text("Site not found", 404);
+
+  const sitePath = site.sitePath ?? c.req.path;
+  if (site.basePath) {
+    c.header("Content-Security-Policy", PATH_SITE_CSP);
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("Referrer-Policy", "no-referrer");
+    if (site.needsSlash) return c.redirect(site.basePath + new URL(c.req.url).search, 308);
+  }
 
   // Password gate: applies even to unpublished/preview so a protected site is
   // never viewable without the password, whatever its publish state.
   if (site.passwordHash) {
-    if (c.req.method === "POST" && c.req.path === UNLOCK_PATH) {
+    if (c.req.method === "POST" && sitePath === UNLOCK_PATH) {
       return handleUnlock(c, site);
     }
-    if (c.req.path === PREVIEW_ACCESS_PATH) {
+    if (sitePath === PREVIEW_ACCESS_PATH) {
       return handlePreviewAccess(c, site);
     }
-    if (!hasAccess(c, site)) return gatePage(c);
+    if (!hasAccess(c, site)) return gatePage(c, site);
   }
 
   if (site.unpublished) {
@@ -250,11 +273,11 @@ app.all("*", async (c) => {
     );
   }
 
-  const file = await resolveFile(site.dir, c.req.path);
+  const file = await resolveFile(site.dir, sitePath);
   if (!file) {
     // No static file — maybe it's a backend function route.
     const routes = await getRoutes(site.dir, site.isPreview);
-    const match = matchRoute(routes, c.req.path);
+    const match = matchRoute(routes, sitePath);
     if (match) return invokeFunction(c, site, match.file, match.params);
 
     const notFound = await resolveFile(site.dir, "/404.html");
@@ -271,7 +294,7 @@ app.all("*", async (c) => {
   return c.body(body, 200, {
     "content-type": charset ? `${type}; charset=${charset.toLowerCase()}` : type,
     // Preview must never be cached; production snapshots are immutable.
-    "cache-control": site.isPreview ? "no-store" : "public, max-age=60",
+    "cache-control": site.passwordHash ? "private, no-store" : site.isPreview ? "no-store" : "public, max-age=60",
   });
 });
 

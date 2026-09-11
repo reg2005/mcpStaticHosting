@@ -800,7 +800,7 @@ export function Editor({
     />
   ) : (
     <div style={{ width, display: "grid", placeItems: "center", padding: 24, boxSizing: "border-box", color: "#9aa3ad" }}>
-      Системный домен выключен. Включите его в разделе «Домены и HTTPS», чтобы открыть preview.
+      Системный адрес выключен. Включите его в разделе «Домены и HTTPS», чтобы открыть preview.
     </div>
   );
 

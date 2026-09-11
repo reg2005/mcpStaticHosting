@@ -115,6 +115,6 @@ export type EnvVar = typeof envVars.$inferSelect;
 /** The edge worker publishes its detected addresses for dashboard/MCP instructions. */
 export const instanceState = pgTable("instance_state", {
   id: text("id").primaryKey(),
-  value: jsonb("value").$type<{ ipv4: string | null; ipv6: string | null; wildcardTls: string; error: string | null }>().notNull(),
+  value: jsonb("value").$type<{ ipv4: string | null; ipv6: string | null; routingMode?: string; mainTls?: string; wildcardTls: string; error: string | null }>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
