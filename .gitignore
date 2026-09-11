@@ -8,8 +8,8 @@ coverage/
 .env.*
 !.env.example
 !.env.development.example
-data/
-backups/
+/data/
+/backups/
 *.log
 .DS_Store
 .codebase-memory/

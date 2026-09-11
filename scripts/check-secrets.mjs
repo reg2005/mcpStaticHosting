@@ -5,7 +5,7 @@ const patterns = [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, /\b(?:ghp
 const failures=[];
 for (const file of files) {
   if (/(^|\/)\.env(?:\.|$)/.test(file) && !file.endsWith('.example')) failures.push(file);
-  if (/(^|\/)(node_modules|data|backups|\.next|\.git)\//.test(file)) failures.push(file);
+  if (/(^(data|backups)\/)|((^|\/)(node_modules|\.next|\.git)\/)/.test(file)) failures.push(file);
   const text = readFileSync(file,'utf8');
   if (patterns.some(pattern=>pattern.test(text))) failures.push(file);
 }

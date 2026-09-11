@@ -27,8 +27,13 @@ jobs:
       - run: docker build -t reg2005/mcp-static-hosting:0.1.0 .
       - run: docker compose up -d --wait --wait-timeout 180
       - run: node scripts/smoke.mjs
+      - run: docker build -t reg2005/mcp-static-hosting-functions:0.1.0 apps/functions
+      - run: docker compose --profile functions up -d --wait --wait-timeout 180
+        env: { FUNCTIONS_ENABLED: "true" }
+      - run: node scripts/smoke.mjs
+        env: { SMOKE_FUNCTIONS: "true" }
       - if: always()
-        run: docker compose down -v
+        run: docker compose --profile functions down -v
   functions:
     runs-on: ubuntu-latest
     steps:

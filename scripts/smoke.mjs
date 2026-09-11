@@ -48,7 +48,7 @@ const project = await tool(key,'create_project',{name:`smoke-${Date.now()}`});
 assert.equal(new URL(project.previewUrl).protocol, new URL(router).protocol);
 await tool(key,'write_file',{project:project.id,path:'index.html',content:'<h1>first release</h1>'});
 assert.match((await site(project.previewUrl)).body,/first release/);
-await tool(key,'write_file',{project:project.id,path:'functions/api/hello.ts',content:'export default () => Response.json({hello: true});'});
+await tool(key,'write_file',{project:project.id,path:'functions/api/hello.ts',content:'export default async (_req, ctx) => { const record = await ctx.data.insert("smoke", {hello:true}); return Response.json({hello:true, id:record.id}); };'});
 const functionResponse = await site(project.previewUrl,'/api/hello');
 assert.equal(functionResponse.status,process.env.SMOKE_FUNCTIONS === 'true' ? 200 : 503);
 if (process.env.SMOKE_FUNCTIONS === 'true') assert.equal(JSON.parse(functionResponse.body).hello,true);
@@ -71,6 +71,12 @@ assert.equal((await site(project.productionUrl)).status,200);
 const config = await fetch(`${web}/dashboard/settings/tokens`,{headers:{cookie}});
 assert((await config.text()).includes(mcp),'Dashboard must use runtime MCP URL');
 assert.equal((await fetch(`${web}/monaco/vs/loader.js`)).status,200);
+assert.equal((await fetch(`${web}/api/projects/${project.id}/data`,{headers:{cookie}})).status,200);
+if (process.env.SMOKE_FUNCTIONS === 'true') {
+  const records = await fetch(`${web}/api/projects/${project.id}/data/smoke`,{headers:{cookie}});
+  assert.equal(records.status,200);
+  assert((await records.text()).includes('hello'));
+}
 const firstCookie = cookie;
 await api('sign-up/email',{name:'Other Test',email:`other-${Date.now()}@example.com`,password},false);
 const other = await api('api-key/create',{name:'other'});
