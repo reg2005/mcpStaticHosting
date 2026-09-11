@@ -14,8 +14,8 @@ Drizzle/PostgreSQL, Redis and Git storage components.
 Extract source into a fresh repository. Keep these components instead of rewriting
 into the global default framework. Publish one reusable Node image plus an optional
 Deno image. Configure domains at runtime and distribute a pull-only Docker Compose
-file with named volumes and one-shot migrations. GitHub Actions implements checks
-and opt-in publication, as this project is explicitly hosted on GitHub.
+file with named volumes and one-shot migrations. Builds, checks and Docker Hub publication run locally for linux/amd64.
+The owner explicitly requested no GitHub Actions.
 
 ## Trade-offs
 

@@ -1,5 +1,9 @@
 # Operations
 
+For production, replace `docker compose` in the examples below with
+`sh scripts/compose-prod.sh` and back up `.env.production` rather than `.env`.
+The wrapper selects the standalone production file and its environment.
+
 ## Status and logs
 
 ```sh

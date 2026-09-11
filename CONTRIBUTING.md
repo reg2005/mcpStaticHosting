@@ -5,6 +5,7 @@ Commits and update CHANGELOG for user-visible behavior. Never include deployment
 secrets, real user data or generated build output.
 
 Install Node.js 22 and pnpm 8.6.7, then `pnpm install --frozen-lockfile`.
+Validation and releases run locally; GitHub Actions are disabled.
 Run `pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` before submitting.
 The linter checks correctness rules; formatting is not enforced for imported source.
 

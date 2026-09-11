@@ -3,7 +3,6 @@
 Self-hosted website publishing for AI agents. Connect an MCP client, create a site,
 edit files, preview the draft, and publish a versioned release on your own server.
 
-[![CI](https://github.com/reg2005/mcpStaticHosting/actions/workflows/ci.yml/badge.svg)](https://github.com/reg2005/mcpStaticHosting/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Status: early release, single-server deployments.** Start with trusted users.
@@ -29,8 +28,7 @@ or deployment history are included. See [security boundaries](SECURITY.md).
 
 ## Quick start
 
-Requires Docker Engine/Desktop with Docker Compose v2, Git and OpenSSL. Linux servers
-and Docker Desktop are supported. Ports 3000–3002 must be available. No local Node.js,
+Requires Docker Engine/Desktop with Docker Compose v2, Git and OpenSSL. Linux x86-64 servers and Docker Desktop with x86-64 emulation are supported. Ports 3000–3002 must be available. No local Node.js,
 PostgreSQL, Redis or Deno installation is needed to run the published stack.
 
 ```sh
@@ -59,6 +57,27 @@ local defaults as a public deployment configuration.
 
 `setup.sh` generates unique secrets in the ignored `.env` file. It never overwrites
 an existing configuration. `docker compose down` preserves data; adding `-v` deletes it.
+
+## Production installation
+
+The standalone [compose.prod.yaml](compose.prod.yaml) uses
+`reg2005/mcp-static-hosting:0.1.0` and the optional
+`reg2005/mcp-static-hosting-functions:0.1.0`, both for `linux/amd64`.
+It contains no builds or installation secrets.
+
+```sh
+sh scripts/setup.sh --production
+# Edit .env.production: AUTH_BASE_URL, MCP_PUBLIC_URL, PUBLIC_BASE_DOMAIN, EMAIL_FROM.
+# Configure DNS and your TLS reverse proxy (see the deployment guide).
+sh scripts/compose-prod.sh pull
+sh scripts/compose-prod.sh up -d --wait
+```
+
+Registration is closed by default in production. Temporarily set
+`SIGNUPS_ENABLED=true`, recreate services, register the first trusted account, then
+set it back to `false` and recreate services again. Public endpoints must be behind
+TLS. The compose wrapper is equivalent to
+`docker compose --env-file .env.production -f compose.prod.yaml`.
 
 ## Containers
 

@@ -1,5 +1,11 @@
 # Configuration
 
+Local `compose.yaml` reads `.env`; standalone `compose.prod.yaml` reads
+`.env.production` through `scripts/compose-prod.sh`. Production fixes image repositories
+to `reg2005/mcp-static-hosting` and `reg2005/mcp-static-hosting-functions`, requires
+public domains, uses HTTPS without a site port, and closes registration by default.
+Both distributions select `linux/amd64`.
+
 All deployment values are read at container startup. No domain-specific rebuild is
 required. Edit `.env`, then run `docker compose up -d`. Restart alone does not apply
 changed Compose environment values. Do not paste rendered Compose output into issues:

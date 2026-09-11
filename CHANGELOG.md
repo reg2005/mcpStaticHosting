@@ -12,7 +12,8 @@ and Semantic Versioning.
 - Shared Node image, optional Deno image and automatic database migrations.
 - English and Russian setup documentation, operations and security guidance.
 - Runtime domain configuration and unique-secret setup script.
-- CI checks and release publishing workflow.
+- Local validation and x86-64 image publication instructions.
+- Standalone production Compose with published image references.
 
 ### Fixed
 - Correct hostname registration when site URLs include a custom port.

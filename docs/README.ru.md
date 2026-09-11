@@ -27,17 +27,31 @@ docker compose up -d --wait
 Данные находятся в именованных Docker volumes. `docker compose down` их сохраняет,
 а `docker compose down -v` удаляет.
 
-## Сервер и свой домен
+## Продакшен и свой домен
 
-В `.env` задайте `AUTH_BASE_URL`, `MCP_PUBLIC_URL`, `PUBLIC_BASE_DOMAIN`,
-`PUBLIC_SITE_SCHEME=https` и пустой `PUBLIC_SITE_PORT`. Настройте DNS, TLS и reverse
-proxy по [инструкции](deployment.md). Для сайтов пользователей используйте отдельный
-регистрируемый домен от панели. По умолчанию порты доступны только на localhost.
-Адрес MCP меняется при запуске — пересобирать Docker-образ не нужно.
+В репозитории есть отдельный [compose.prod.yaml](../compose.prod.yaml) с образами
+`reg2005/mcp-static-hosting:0.1.0` и `reg2005/mcp-static-hosting-functions:0.1.0`
+для `linux/amd64` (x86-64). Сборка на сервере не требуется.
 
-После регистрации нужных пользователей закройте регистрацию:
-`SIGNUPS_ENABLED=false`, затем `docker compose up -d`.
-Без почтового провайдера подтверждение почты отключено и сброс пароля не доставляется.
+```sh
+sh scripts/setup.sh --production
+# Заполните домены и EMAIL_FROM в .env.production
+sh scripts/compose-prod.sh pull
+sh scripts/compose-prod.sh up -d --wait
+```
+
+В `.env.production` задайте `AUTH_BASE_URL=https://panel.example.com`,
+`MCP_PUBLIC_URL=https://mcp.example.com/mcp`, `PUBLIC_BASE_DOMAIN=sites.example.net`.
+Замените примеры своими доменами. Настройте DNS, TLS и reverse proxy по
+[инструкции](deployment.md). Для пользовательских сайтов используйте отдельный
+регистрируемый домен от панели. Порты по умолчанию доступны только на localhost.
+
+Регистрация в production закрыта. Для создания первого аккаунта временно задайте
+`SIGNUPS_ENABLED=true` и выполните `sh scripts/compose-prod.sh up -d`.
+Затем верните `false` и повторите команду. Без почтового провайдера подтверждение
+почты отключено и сброс пароля не доставляется.
+
+Сборка и публикация выполняются локально; GitHub Actions не используются.
 
 ## Ограничения
 

@@ -12,18 +12,17 @@ services start; health checks delay startup until PostgreSQL and Redis are ready
 2. Use a **separate registrable domain** for user content, for example
    `sites.example.net`, `*.sites.example.net` and `*.preview.sites.example.net`.
    This keeps user-controlled pages out of the dashboard's cookie/site boundary.
-3. Generate `.env` with `sh scripts/setup.sh` and set:
+3. Generate `.env.production` with `sh scripts/setup.sh --production` and set:
 
 ```dotenv
 AUTH_BASE_URL=https://panel.example.com
 MCP_PUBLIC_URL=https://mcp.example.com/mcp
 PUBLIC_BASE_DOMAIN=sites.example.net
-PUBLIC_SITE_SCHEME=https
-PUBLIC_SITE_PORT=
 BIND_ADDRESS=127.0.0.1
 ```
 
-4. Run `docker compose pull && docker compose up -d --wait`.
+4. Run `sh scripts/compose-prod.sh pull` and `sh scripts/compose-prod.sh up -d --wait`.
+   The standalone `compose.prod.yaml` pins image repositories and the x86-64 platform.
 5. Configure your host reverse proxy using this routing table:
 
 | Host | Upstream |
@@ -50,7 +49,7 @@ Set limits at the edge for request size, request frequency, login attempts and s
 password attempts. The MCP limiter defaults to 600 requests per token per minute and
 currently fails open if Redis is unavailable. Keep signups closed except when inviting
 trusted accounts: set `SIGNUPS_ENABLED=false` after initial registration, then run
-`docker compose up -d` to recreate affected services.
+`sh scripts/compose-prod.sh up -d` to recreate affected services.
 
 ## Email
 
